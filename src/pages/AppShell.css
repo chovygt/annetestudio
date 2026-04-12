@@ -1,0 +1,107 @@
+.app-shell {
+  text-align: left;
+  padding: 1rem 1.25rem 2rem;
+  max-width: 640px;
+  margin: 0 auto;
+}
+
+.app-shell header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding-bottom: 1rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-shell header h1 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.app-shell .meta {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.app-shell nav a {
+  color: var(--accent);
+  margin-right: 1rem;
+  font-size: 0.9rem;
+}
+
+.app-shell button.ghost {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-h);
+  padding: 0.4rem 0.75rem;
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.app-shell section {
+  margin-bottom: 1.75rem;
+}
+
+.app-shell h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+}
+
+.app-shell .card {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+  background: var(--code-bg);
+}
+
+.app-shell input.inline {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  font: inherit;
+  margin-bottom: 0.5rem;
+}
+
+.app-shell .row-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.app-shell button.primary {
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.app-shell .msg {
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
+.app-shell .msg.ok {
+  color: var(--text-h);
+}
+
+.app-shell .msg.err {
+  color: #c026d3;
+}
+
+@media (prefers-color-scheme: dark) {
+  .app-shell .msg.err {
+    color: #f0abfc;
+  }
+}
