@@ -162,7 +162,7 @@
   border-radius: 14px;
   overflow: hidden;
   border: 1px solid rgba(44, 36, 28, 0.14);
-  background: rgba(44, 36, 28, 0.8);
+  background: #18120d;
 }
 
 .coupon-scanner-video {
@@ -170,6 +170,8 @@
   width: 100%;
   aspect-ratio: 4 / 3;
   object-fit: cover;
+  position: relative;
+  z-index: 1;
 }
 
 .coupon-scan-frame {
@@ -177,7 +179,9 @@
   inset: 14% 16%;
   border: 2px solid rgba(255, 255, 255, 0.9);
   border-radius: 14px;
-  box-shadow: 0 0 0 9999px rgba(44, 36, 28, 0.25);
+  z-index: 2;
+  pointer-events: none;
+  background: transparent;
 }
 
 .coupon-pass {

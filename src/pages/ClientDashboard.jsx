@@ -40,6 +40,7 @@ export default function ClientDashboard() {
   const detectorRef = useRef(null)
   const rafRef = useRef(0)
   const stoppingRef = useRef(false)
+  const scanActiveRef = useRef(false)
 
   useEffect(() => {
     let alive = true
@@ -99,6 +100,7 @@ export default function ClientDashboard() {
 
   function stopScanner() {
     stoppingRef.current = true
+    scanActiveRef.current = false
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current)
       rafRef.current = 0
@@ -108,13 +110,16 @@ export default function ClientDashboard() {
       stream.getTracks().forEach((track) => track.stop())
       streamRef.current = null
     }
+    if (videoRef.current) {
+      videoRef.current.srcObject = null
+    }
     detectorRef.current = null
     setScanOpen(false)
     setScanBusy(false)
   }
 
   async function scanFrame() {
-    if (stoppingRef.current || !scanOpen) return
+    if (stoppingRef.current || !scanActiveRef.current) return
     const video = videoRef.current
     const detector = detectorRef.current
     if (!video || !detector) return
@@ -157,6 +162,7 @@ export default function ClientDashboard() {
     }
     setScanBusy(true)
     stoppingRef.current = false
+    scanActiveRef.current = true
     try {
       const detector = new window.BarcodeDetector({ formats: ['qr_code'] })
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -168,17 +174,29 @@ export default function ClientDashboard() {
       setScanOpen(true)
       setScanMsg('Apunta al QR para detectar el código automáticamente.')
       queueMicrotask(() => {
-        if (!videoRef.current) return
-        videoRef.current.srcObject = stream
-        videoRef.current
-          .play()
-          .then(() => {
-            rafRef.current = requestAnimationFrame(scanFrame)
-          })
-          .catch(() => {
-            setRedeemMsg({ ok: false, text: 'No fue posible iniciar el video de la cámara.' })
-            stopScanner()
-          })
+        const video = videoRef.current
+        if (!video) return
+        video.srcObject = stream
+        video.muted = true
+        video.setAttribute('playsinline', 'true')
+        const begin = () => {
+          video
+            .play()
+            .then(() => {
+              rafRef.current = requestAnimationFrame(scanFrame)
+            })
+            .catch(() => {
+              setRedeemMsg({ ok: false, text: 'No fue posible iniciar el video de la cámara.' })
+              stopScanner()
+            })
+        }
+        if (video.readyState >= 1) begin()
+        else {
+          video.onloadedmetadata = () => {
+            video.onloadedmetadata = null
+            begin()
+          }
+        }
       })
     } catch {
       setRedeemMsg({ ok: false, text: 'No se pudo abrir la cámara. Revisa permisos del navegador.' })
