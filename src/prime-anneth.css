@@ -1,0 +1,28 @@
+/**
+ * Anneth — ajustes sobre Lara Light Amber (PrimeReact).
+ * Mantiene terracota / arena como primarios.
+ */
+:root {
+  --primary-color: #b5654c;
+  --primary-color-text: #fffaf8;
+  --surface-0: #fffef9;
+  --surface-50: #faf6f1;
+  --surface-100: #efe8df;
+  --surface-200: #e5d9cc;
+  --surface-ground: #faf6f1;
+  --text-color: #3d362e;
+  --text-color-secondary: #6b5f54;
+}
+
+body .p-component {
+  font-family: 'Outfit', system-ui, sans-serif;
+}
+
+/* Sidebar admin: fondo papel */
+.admin-pr-sidebar.p-sidebar {
+  background: #fffef9;
+}
+
+.admin-pr-sidebar .p-sidebar-header {
+  border-bottom: 1px solid rgba(44, 36, 28, 0.1);
+}

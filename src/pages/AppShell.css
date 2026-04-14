@@ -1,8 +1,21 @@
 .app-shell {
+  --ann-terracotta: #b5654c;
+  --ann-terracotta-dark: #8c4a38;
+  --ann-sage: #7a8f7e;
+  --ann-ink: #2c241c;
+  --ann-paper: rgba(255, 252, 248, 0.92);
+
   text-align: left;
-  padding: 1rem 1.25rem 2rem;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(2rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
   max-width: 640px;
+  width: 100%;
   margin: 0 auto;
+  font-family: 'Outfit', system-ui, sans-serif;
+  min-height: 100svh;
+  box-sizing: border-box;
+  background: linear-gradient(185deg, #faf6f1 0%, #efe8df 55%, #e5d9cc 100%);
+  color: #5c534a;
 }
 
 .app-shell header {
@@ -13,7 +26,31 @@
   flex-wrap: wrap;
   padding-bottom: 1rem;
   margin-bottom: 1.25rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid rgba(44, 36, 28, 0.12);
+}
+
+.app-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+}
+
+.app-shell .app-logo {
+  height: 52px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.app-kicker {
+  margin: 0 0 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ann-sage);
 }
 
 .app-shell header h1 {
@@ -27,15 +64,22 @@
 }
 
 .app-shell nav a {
-  color: var(--accent);
+  color: var(--ann-terracotta-dark);
   margin-right: 1rem;
   font-size: 0.9rem;
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(140, 74, 56, 0.3);
+}
+
+.app-shell nav a:hover {
+  border-bottom-color: var(--ann-terracotta-dark);
 }
 
 .app-shell button.ghost {
   background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-h);
+  border: 1px solid rgba(44, 36, 28, 0.15);
+  color: var(--ann-ink);
   padding: 0.4rem 0.75rem;
   border-radius: 8px;
   font: inherit;
@@ -47,16 +91,20 @@
 }
 
 .app-shell h2 {
-  font-size: 1.1rem;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.35rem;
+  font-weight: 600;
   margin: 0 0 0.75rem;
+  color: var(--ann-ink);
 }
 
 .app-shell .card {
-  border: 1px solid var(--border);
-  border-radius: 12px;
+  border: 1px solid rgba(44, 36, 28, 0.1);
+  border-radius: 14px;
   padding: 1rem;
   margin-bottom: 0.75rem;
-  background: var(--code-bg);
+  background: var(--ann-paper);
+  box-shadow: 0 8px 24px rgba(44, 36, 28, 0.06);
 }
 
 .app-shell input.inline {
@@ -78,13 +126,19 @@
 }
 
 .app-shell button.primary {
-  background: var(--accent);
-  color: #fff;
+  background: linear-gradient(
+    165deg,
+    var(--ann-terracotta) 0%,
+    var(--ann-terracotta-dark) 100%
+  );
+  color: #fffaf8;
   border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: 0.55rem 1.1rem;
+  border-radius: 10px;
   font: inherit;
+  font-weight: 600;
   cursor: pointer;
+  box-shadow: 0 6px 16px rgba(140, 74, 56, 0.22);
 }
 
 .app-shell .msg {
@@ -93,15 +147,24 @@
 }
 
 .app-shell .msg.ok {
-  color: var(--text-h);
+  color: var(--ann-ink);
 }
 
 .app-shell .msg.err {
-  color: #c026d3;
+  color: #9a3f32;
 }
 
-@media (prefers-color-scheme: dark) {
-  .app-shell .msg.err {
-    color: #f0abfc;
+@media (max-width: 420px) {
+  .app-header-brand {
+    flex-wrap: wrap;
+  }
+
+  .app-shell .app-logo {
+    height: 44px;
+    max-width: 140px;
+  }
+
+  .app-kicker {
+    letter-spacing: 0.14em;
   }
 }

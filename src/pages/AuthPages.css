@@ -1,88 +1,341 @@
-.auth-page {
-  max-width: 400px;
-  margin: 0 auto;
-  padding: 2rem 1rem;
+/* --- Anneth: tierra, arena, terracota, pampas (solo pantallas de auth) --- */
+.auth-layout {
+  --ann-sand: #e8dfd4;
+  --ann-sand-deep: #d4c4b2;
+  --ann-cream: #faf6f1;
+  --ann-paper: rgba(255, 252, 248, 0.94);
+  --ann-ink: #2c241c;
+  --ann-ink-soft: #5c534a;
+  --ann-terracotta: #b5654c;
+  --ann-terracotta-dark: #8c4a38;
+  --ann-sage: #7a8f7e;
+  --ann-line: rgba(44, 36, 28, 0.12);
+  --ann-shadow: rgba(44, 36, 28, 0.08);
+
+  min-height: 100dvh;
+  min-height: 100svh;
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(320px, 1fr);
+  font-family: 'Outfit', system-ui, sans-serif;
+  color: var(--ann-ink-soft);
+  background: var(--ann-cream);
+}
+
+@media (max-width: 880px) {
+  .auth-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto 1fr;
+  }
+}
+
+.auth-visual {
+  position: relative;
+  overflow: hidden;
+  min-height: 220px;
+  color: var(--ann-terracotta-dark);
+}
+
+@media (min-width: 881px) {
+  .auth-visual {
+    min-height: 100svh;
+  }
+}
+
+.auth-visual-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 120% 80% at 20% 20%, rgba(255, 248, 238, 0.95), transparent 55%),
+    radial-gradient(ellipse 90% 70% at 80% 60%, rgba(212, 196, 178, 0.55), transparent 50%),
+    linear-gradient(165deg, #efe6dc 0%, #e0d2c4 38%, #d2bfa8 72%, #c4a892 100%);
+}
+
+.auth-visual .pampas-decor {
+  position: absolute;
+  right: -5%;
+  bottom: -8%;
+  width: min(95%, 420px);
+  height: auto;
+  color: #6b4f3e;
+  opacity: 0.55;
+  pointer-events: none;
+}
+
+@media (max-width: 880px) {
+  .auth-visual .pampas-decor {
+    right: -20%;
+    bottom: -15%;
+    opacity: 0.35;
+  }
+}
+
+.auth-visual-quote {
+  position: absolute;
+  left: 1.75rem;
+  bottom: 1.75rem;
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 1.35rem;
+  font-style: italic;
+  color: rgba(44, 36, 28, 0.72);
+  letter-spacing: 0.04em;
+  max-width: 14ch;
+  line-height: 1.35;
+}
+
+@media (max-width: 880px) {
+  .auth-visual-quote {
+    font-size: 1.15rem;
+    left: 1.25rem;
+    bottom: 1.25rem;
+  }
+}
+
+.auth-panel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem max(1rem, env(safe-area-inset-right))
+    max(1.5rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
+  background: linear-gradient(180deg, var(--ann-cream) 0%, var(--ann-sand) 100%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 2rem 1.75rem 1.5rem;
+  border-radius: 22px;
+  background: var(--ann-paper);
+  border: 1px solid var(--ann-line);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.75) inset,
+    0 24px 48px var(--ann-shadow);
+  backdrop-filter: blur(10px);
+}
+
+.auth-brand {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.auth-logo {
+  display: block;
+  width: min(220px, 72vw);
+  height: auto;
+  margin: 0 auto 0.75rem;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 8px rgba(44, 36, 28, 0.06));
+}
+
+.auth-eyebrow {
+  margin: 0 0 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: var(--ann-sage);
+}
+
+.auth-title {
+  margin: 0;
+  font-family: 'Cormorant Garamond', Georgia, serif;
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--ann-ink);
+  letter-spacing: 0.02em;
+  line-height: 1.15;
+}
+
+.auth-body {
   text-align: left;
 }
 
-.auth-page h1 {
-  font-size: 1.75rem;
-  margin-bottom: 0.5rem;
-  text-align: center;
+.auth-page {
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  text-align: left;
 }
 
 .auth-page .sub {
-  text-align: center;
-  margin-bottom: 1.5rem;
-  color: var(--text);
+  display: none;
 }
 
 .auth-page label {
   display: block;
-  font-size: 0.875rem;
-  margin-bottom: 0.35rem;
-  color: var(--text-h);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 0.4rem;
+  color: var(--ann-ink-soft);
 }
 
 .auth-page input {
   width: 100%;
   box-sizing: border-box;
-  padding: 0.65rem 0.75rem;
+  padding: 0.75rem 0.85rem;
   margin-bottom: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--bg);
-  color: var(--text-h);
+  border: 1px solid var(--ann-line);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ann-ink);
   font: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.auth-page input::placeholder {
+  color: rgba(92, 83, 74, 0.45);
+}
+
+.auth-page input:hover {
+  border-color: rgba(181, 101, 76, 0.35);
+}
+
+.auth-page input:focus {
+  outline: none;
+  border-color: var(--ann-terracotta);
+  box-shadow: 0 0 0 3px rgba(181, 101, 76, 0.18);
 }
 
 .auth-page button[type='submit'] {
   width: 100%;
-  padding: 0.75rem 1rem;
-  margin-top: 0.25rem;
+  padding: 0.85rem 1rem;
+  margin-top: 0.35rem;
   border: none;
-  border-radius: 8px;
-  background: var(--accent);
-  color: #fff;
+  border-radius: 12px;
+  background: linear-gradient(
+    165deg,
+    var(--ann-terracotta) 0%,
+    var(--ann-terracotta-dark) 100%
+  );
+  color: #fffaf8;
   font: inherit;
   font-weight: 600;
+  letter-spacing: 0.04em;
   cursor: pointer;
+  box-shadow: 0 8px 20px rgba(140, 74, 56, 0.25);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.auth-page button[type='submit']:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 26px rgba(140, 74, 56, 0.3);
 }
 
 .auth-page button[type='submit']:disabled {
-  opacity: 0.6;
+  opacity: 0.55;
   cursor: not-allowed;
+  transform: none;
 }
 
-.auth-page .error {
-  background: var(--accent-bg);
-  border: 1px solid var(--accent-border);
-  color: var(--text-h);
-  padding: 0.65rem 0.75rem;
-  border-radius: 8px;
+.auth-page .error,
+.auth-page .auth-flash {
+  background: rgba(181, 101, 76, 0.1);
+  border: 1px solid rgba(181, 101, 76, 0.28);
+  color: var(--ann-ink);
+  padding: 0.75rem 0.85rem;
+  border-radius: 12px;
   margin-bottom: 1rem;
   font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.auth-page .auth-flash.info {
+  background: rgba(122, 143, 126, 0.12);
+  border-color: rgba(122, 143, 126, 0.35);
 }
 
 .auth-page .hint {
   text-align: center;
-  margin-top: 1.25rem;
+  margin-top: 1.35rem;
   font-size: 0.9rem;
+  color: var(--ann-ink-soft);
 }
 
 .auth-page .hint a {
-  color: var(--accent);
+  color: var(--ann-terracotta-dark);
+  font-weight: 600;
+  text-decoration: none;
+  border-bottom: 1px solid rgba(140, 74, 56, 0.35);
+}
+
+.auth-page .hint a:hover {
+  border-bottom-color: var(--ann-terracotta-dark);
 }
 
 .auth-page .error .dismiss-auth-alert,
 .dismiss-auth-alert {
   margin-top: 0.75rem;
   background: transparent;
-  border: 1px solid var(--accent-border);
-  color: var(--text-h);
-  padding: 0.35rem 0.65rem;
-  border-radius: 6px;
+  border: 1px solid rgba(140, 74, 56, 0.35);
+  color: var(--ann-terracotta-dark);
+  padding: 0.4rem 0.7rem;
+  border-radius: 8px;
   font: inherit;
-  font-size: 0.85rem;
+  font-size: 0.82rem;
   cursor: pointer;
+}
+
+.auth-footer {
+  margin-top: 1.75rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid var(--ann-line);
+  text-align: center;
+}
+
+.auth-instagram {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ann-terracotta-dark);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+
+.auth-instagram:hover {
+  text-decoration: underline;
+}
+
+/* Móviles estrechos: menos padding y titular más compacto */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 1.35rem 1.1rem 1.25rem;
+    border-radius: 18px;
+  }
+
+  .auth-title {
+    font-size: 1.65rem;
+  }
+
+  .auth-eyebrow {
+    font-size: 0.65rem;
+    letter-spacing: 0.2em;
+  }
+
+  .auth-visual {
+    min-height: 180px;
+  }
+
+  .auth-visual-quote {
+    max-width: 18ch;
+    font-size: 1.05rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .auth-title {
+    font-size: 1.45rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-page button[type='submit'] {
+    transition: none;
+  }
+
+  .auth-page button[type='submit']:hover:not(:disabled) {
+    transform: none;
+  }
 }

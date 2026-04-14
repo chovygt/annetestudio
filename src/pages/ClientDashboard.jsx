@@ -89,10 +89,19 @@ export default function ClientDashboard() {
   return (
     <div className="app-shell">
       <header>
-        <div>
-          <h1>AnnetEstudio</h1>
-          <div className="meta">
-            {profile?.nombre || profile?.email} · Clienta
+        <div className="app-header-brand">
+          <img
+            className="app-logo"
+            src="/images/logo-anneth.png"
+            width={160}
+            height={80}
+            alt="Anneth Beauty Studio"
+          />
+          <div>
+            <p className="app-kicker">Tarjeta de fidelidad</p>
+            <div className="meta">
+              {profile?.nombre || profile?.email} · Clienta
+            </div>
           </div>
         </div>
         <button type="button" className="ghost" onClick={() => signOut()}>
