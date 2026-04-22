@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from 'primereact/button'
 import { Calendar } from 'primereact/calendar'
 import { Column } from 'primereact/column'
@@ -14,6 +15,12 @@ import { SelectButton } from 'primereact/selectbutton'
 import { Steps } from 'primereact/steps'
 import { supabase } from '../../lib/supabaseClient'
 import { uploadComprobanteToFacturasBucket } from '../../lib/uploadComprobanteFacturas'
+import {
+  ADMIN_MODAL_HISTORY_MARK,
+  peelAdminModalHistory,
+  pushAdminModalHistory,
+  useAdminModalPopstate,
+} from '../../lib/adminWizardHistory.js'
 
 const PAGO_FORMA_OPTIONS = [
   { label: 'Efectivo', value: 'efectivo' },
@@ -96,7 +103,16 @@ export default function ComprasSection({ onMessage }) {
   const [viewCompra, setViewCompra] = useState(null)
   const cameraInputRef = useRef(null)
   const pagoCameraRef = useRef(null)
+  const wizardClosingFromPopRef = useRef(false)
   const [pagoInmediato, setPagoInmediato] = useState(() => emptyPagoInmediato())
+  const ignorePopRef = useAdminModalPopstate({
+    isOpen: wizardOpen,
+    onPopClose: () => {
+      wizardClosingFromPopRef.current = true
+      setWizardOpen(false)
+      setDialogAlert(null)
+    },
+  })
 
   const proveedoresOptions = useMemo(
     () => proveedores.map((p) => ({ label: p.nombre, value: p.id })),
@@ -187,7 +203,19 @@ export default function ComprasSection({ onMessage }) {
 
   function openWizard() {
     resetWizard()
+    wizardClosingFromPopRef.current = false
+    pushAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.compraWizard)
     setWizardOpen(true)
+  }
+
+  function closeCompraWizardUi() {
+    if (wizardClosingFromPopRef.current) {
+      wizardClosingFromPopRef.current = false
+      return
+    }
+    peelAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.compraWizard, ignorePopRef)
+    setWizardOpen(false)
+    setDialogAlert(null)
   }
 
   function setHeaderField(field, value) {
@@ -395,6 +423,7 @@ export default function ComprasSection({ onMessage }) {
       }
 
       onMessage?.({ ok: true, text: 'Compra registrada correctamente.' })
+      peelAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.compraWizard, ignorePopRef)
       setWizardOpen(false)
       resetWizard()
       refreshCompras()
@@ -539,14 +568,6 @@ export default function ComprasSection({ onMessage }) {
         <div className="admin-compra-step-grid">
         <div className="admin-compra-field-full">
           <label>Foto de factura física</label>
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={onCameraInputChange}
-              style={{ display: 'none' }}
-            />
             <Button
               type="button"
               icon="pi pi-camera"
@@ -626,17 +647,6 @@ export default function ComprasSection({ onMessage }) {
         </div>
         <div className="admin-compra-field-full">
           <label>Comprobante de pago (foto, opcional)</label>
-          <input
-            ref={pagoCameraRef}
-            type="file"
-            accept="image/*,application/pdf"
-            capture="environment"
-            onChange={(e) => {
-              onPagoComprobanteFile(e.target.files?.[0])
-              e.target.value = ''
-            }}
-            style={{ display: 'none' }}
-          />
           <Button
             type="button"
             icon="pi pi-camera"
@@ -674,8 +684,41 @@ export default function ComprasSection({ onMessage }) {
     )
   }
 
+  const filePickersPortal =
+    typeof document !== 'undefined'
+      ? createPortal(
+          <>
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={onCameraInputChange}
+              style={{ display: 'none' }}
+              aria-hidden
+              tabIndex={-1}
+            />
+            <input
+              ref={pagoCameraRef}
+              type="file"
+              accept="image/*,application/pdf"
+              capture="environment"
+              onChange={(e) => {
+                onPagoComprobanteFile(e.target.files?.[0])
+                e.target.value = ''
+              }}
+              style={{ display: 'none' }}
+              aria-hidden
+              tabIndex={-1}
+            />
+          </>,
+          document.body
+        )
+      : null
+
   return (
     <div className="admin-panel">
+      {filePickersPortal}
       <ConfirmDialog />
       <h2>Compras</h2>
       <p className="lead">
@@ -764,12 +807,14 @@ export default function ComprasSection({ onMessage }) {
         header="Nueva compra"
         visible={wizardOpen}
         style={{ width: 'min(54rem, 96vw)' }}
-        onHide={() => {
-          setWizardOpen(false)
-          setDialogAlert(null)
-        }}
+        onHide={closeCompraWizardUi}
         modal
         dismissableMask={false}
+        closable={false}
+        closeOnEscape={false}
+        focusOnShow={false}
+        draggable={false}
+        resizable={false}
       >
         <div className="admin-compra-wizard">
           {dialogAlert ? (
@@ -782,7 +827,7 @@ export default function ComprasSection({ onMessage }) {
           <Steps model={stepsModel} activeIndex={wizardStep} readOnly className="admin-compra-steps" />
           <div className="admin-compra-step-content">{renderStepContent()}</div>
           <div className="admin-catalog-dialog-actions">
-            <Button type="button" label="Cancelar" severity="secondary" text onClick={() => setWizardOpen(false)} />
+            <Button type="button" label="Cancelar" severity="secondary" text onClick={closeCompraWizardUi} />
             {wizardStep > 0 ? (
               <Button type="button" label="Atrás" outlined severity="secondary" onClick={prevStep} />
             ) : null}

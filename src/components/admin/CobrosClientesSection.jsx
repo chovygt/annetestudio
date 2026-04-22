@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from 'primereact/button'
 import { Calendar } from 'primereact/calendar'
 import { Column } from 'primereact/column'
@@ -12,6 +13,12 @@ import { Message } from 'primereact/message'
 import { Steps } from 'primereact/steps'
 import { supabase } from '../../lib/supabaseClient'
 import { uploadComprobanteToFacturasBucket } from '../../lib/uploadComprobanteFacturas'
+import {
+  ADMIN_MODAL_HISTORY_MARK,
+  peelAdminModalHistory,
+  pushAdminModalHistory,
+  useAdminModalPopstate,
+} from '../../lib/adminWizardHistory.js'
 
 const WIZARD_STEPS = [{ label: 'Cobro' }, { label: 'Aplicar a ventas' }]
 
@@ -66,6 +73,15 @@ export default function CobrosClientesSection({ onMessage }) {
   const [ventaLabels, setVentaLabels] = useState(new Map())
   const [viewCobro, setViewCobro] = useState(null)
   const cameraRef = useRef(null)
+  const wizardClosingFromPopRef = useRef(false)
+  const ignorePopRef = useAdminModalPopstate({
+    isOpen: wizardOpen,
+    onPopClose: () => {
+      wizardClosingFromPopRef.current = true
+      setWizardOpen(false)
+      setDialogAlert(null)
+    },
+  })
 
   const refreshList = useCallback(async () => {
     setLoading(true)
@@ -177,7 +193,19 @@ export default function CobrosClientesSection({ onMessage }) {
   function openWizard() {
     resetWizard()
     loadSaldos()
+    wizardClosingFromPopRef.current = false
+    pushAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.cobroWizard)
     setWizardOpen(true)
+  }
+
+  function closeCobroWizardUi() {
+    if (wizardClosingFromPopRef.current) {
+      wizardClosingFromPopRef.current = false
+      return
+    }
+    peelAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.cobroWizard, ignorePopRef)
+    setWizardOpen(false)
+    setDialogAlert(null)
   }
 
   function onFile(file) {
@@ -271,6 +299,7 @@ export default function CobrosClientesSection({ onMessage }) {
         throw ea
       }
       onMessage?.({ ok: true, text: 'Cobro registrado y aplicado a las ventas.' })
+      peelAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.cobroWizard, ignorePopRef)
       setWizardOpen(false)
       resetWizard()
       refreshList()
@@ -289,8 +318,29 @@ export default function CobrosClientesSection({ onMessage }) {
     }
   }
 
+  const filePickerPortal =
+    typeof document !== 'undefined'
+      ? createPortal(
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*,application/pdf"
+            capture="environment"
+            onChange={(e) => {
+              onFile(e.target.files?.[0])
+              e.target.value = ''
+            }}
+            style={{ display: 'none' }}
+            aria-hidden
+            tabIndex={-1}
+          />,
+          document.body
+        )
+      : null
+
   return (
     <div className="admin-panel">
+      {filePickerPortal}
       <h2>Cobros de clientas</h2>
       <p className="lead">
         Registra cobros sobre ventas a crédito. Indica la forma de pago (efectivo, transferencia o
@@ -372,12 +422,14 @@ export default function CobrosClientesSection({ onMessage }) {
         header="Nuevo cobro de clienta"
         visible={wizardOpen}
         style={{ width: 'min(52rem, 96vw)' }}
-        onHide={() => {
-          setWizardOpen(false)
-          setDialogAlert(null)
-        }}
+        onHide={closeCobroWizardUi}
         modal
         dismissableMask={false}
+        closable={false}
+        closeOnEscape={false}
+        focusOnShow={false}
+        draggable={false}
+        resizable={false}
       >
         <div className="admin-compra-wizard">
           {dialogAlert ? (
@@ -419,17 +471,6 @@ export default function CobrosClientesSection({ onMessage }) {
               </div>
               <div className="admin-compra-field-full">
                 <label>Comprobante (foto o archivo)</label>
-                <input
-                  ref={cameraRef}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  capture="environment"
-                  onChange={(e) => {
-                    onFile(e.target.files?.[0])
-                    e.target.value = ''
-                  }}
-                  style={{ display: 'none' }}
-                />
                 <Button
                   type="button"
                   icon="pi pi-camera"
@@ -515,7 +556,7 @@ export default function CobrosClientesSection({ onMessage }) {
             </div>
           )}
           <div className="admin-catalog-dialog-actions">
-            <Button type="button" label="Cancelar" severity="secondary" text onClick={() => setWizardOpen(false)} />
+            <Button type="button" label="Cancelar" severity="secondary" text onClick={closeCobroWizardUi} />
             {step > 0 ? (
               <Button type="button" label="Atrás" outlined severity="secondary" onClick={() => setStep(0)} />
             ) : null}

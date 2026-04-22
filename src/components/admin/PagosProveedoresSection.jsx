@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from 'primereact/button'
 import { Calendar } from 'primereact/calendar'
 import { Column } from 'primereact/column'
@@ -12,6 +13,12 @@ import { Message } from 'primereact/message'
 import { Steps } from 'primereact/steps'
 import { supabase } from '../../lib/supabaseClient'
 import { uploadComprobanteToFacturasBucket } from '../../lib/uploadComprobanteFacturas'
+import {
+  ADMIN_MODAL_HISTORY_MARK,
+  peelAdminModalHistory,
+  pushAdminModalHistory,
+  useAdminModalPopstate,
+} from '../../lib/adminWizardHistory.js'
 
 const FORMA_PAGO_LABELS = { efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta' }
 
@@ -57,6 +64,15 @@ export default function PagosProveedoresSection({ onMessage }) {
   const [comprasInfo, setComprasInfo] = useState(new Map())
   const [viewPago, setViewPago] = useState(null)
   const cameraRef = useRef(null)
+  const wizardClosingFromPopRef = useRef(false)
+  const ignorePopRef = useAdminModalPopstate({
+    isOpen: wizardOpen,
+    onPopClose: () => {
+      wizardClosingFromPopRef.current = true
+      setWizardOpen(false)
+      setDialogAlert(null)
+    },
+  })
 
   const refreshList = useCallback(async () => {
     setLoading(true)
@@ -152,7 +168,19 @@ export default function PagosProveedoresSection({ onMessage }) {
   function openWizard() {
     resetWizard()
     loadSaldos()
+    wizardClosingFromPopRef.current = false
+    pushAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.pagoProveedorWizard)
     setWizardOpen(true)
+  }
+
+  function closePagoWizardUi() {
+    if (wizardClosingFromPopRef.current) {
+      wizardClosingFromPopRef.current = false
+      return
+    }
+    peelAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.pagoProveedorWizard, ignorePopRef)
+    setWizardOpen(false)
+    setDialogAlert(null)
   }
 
   function onFile(file) {
@@ -244,6 +272,7 @@ export default function PagosProveedoresSection({ onMessage }) {
         throw ea
       }
       onMessage?.({ ok: true, text: 'Pago registrado y aplicado a las facturas.' })
+      peelAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.pagoProveedorWizard, ignorePopRef)
       setWizardOpen(false)
       resetWizard()
       refreshList()
@@ -260,8 +289,29 @@ export default function PagosProveedoresSection({ onMessage }) {
     }
   }
 
+  const filePickerPortal =
+    typeof document !== 'undefined'
+      ? createPortal(
+          <input
+            ref={cameraRef}
+            type="file"
+            accept="image/*,application/pdf"
+            capture="environment"
+            onChange={(e) => {
+              onFile(e.target.files?.[0])
+              e.target.value = ''
+            }}
+            style={{ display: 'none' }}
+            aria-hidden
+            tabIndex={-1}
+          />,
+          document.body
+        )
+      : null
+
   return (
     <div className="admin-panel">
+      {filePickerPortal}
       <h2>Pagos a proveedores</h2>
       <p className="lead">
         Registra un pago (transferencia, efectivo, etc.) y repártelo entre una o varias facturas de
@@ -343,12 +393,14 @@ export default function PagosProveedoresSection({ onMessage }) {
         header="Nuevo pago a proveedores"
         visible={wizardOpen}
         style={{ width: 'min(52rem, 96vw)' }}
-        onHide={() => {
-          setWizardOpen(false)
-          setDialogAlert(null)
-        }}
+        onHide={closePagoWizardUi}
         modal
         dismissableMask={false}
+        closable={false}
+        closeOnEscape={false}
+        focusOnShow={false}
+        draggable={false}
+        resizable={false}
       >
         <div className="admin-compra-wizard">
           {dialogAlert ? (
@@ -380,17 +432,6 @@ export default function PagosProveedoresSection({ onMessage }) {
               </div>
               <div className="admin-compra-field-full">
                 <label>Comprobante (foto o archivo)</label>
-                <input
-                  ref={cameraRef}
-                  type="file"
-                  accept="image/*,application/pdf"
-                  capture="environment"
-                  onChange={(e) => {
-                    onFile(e.target.files?.[0])
-                    e.target.value = ''
-                  }}
-                  style={{ display: 'none' }}
-                />
                 <Button
                   type="button"
                   icon="pi pi-camera"
@@ -476,7 +517,7 @@ export default function PagosProveedoresSection({ onMessage }) {
             </div>
           )}
           <div className="admin-catalog-dialog-actions">
-            <Button type="button" label="Cancelar" severity="secondary" text onClick={() => setWizardOpen(false)} />
+            <Button type="button" label="Cancelar" severity="secondary" text onClick={closePagoWizardUi} />
             {step > 0 ? (
               <Button type="button" label="Atrás" outlined severity="secondary" onClick={() => setStep(0)} />
             ) : null}

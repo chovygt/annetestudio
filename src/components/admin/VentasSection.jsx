@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { Button } from 'primereact/button'
 import { Calendar } from 'primereact/calendar'
 import { Column } from 'primereact/column'
@@ -14,6 +15,12 @@ import { SelectButton } from 'primereact/selectbutton'
 import { Steps } from 'primereact/steps'
 import { supabase } from '../../lib/supabaseClient'
 import { uploadComprobanteToFacturasBucket } from '../../lib/uploadComprobanteFacturas'
+import {
+  ADMIN_MODAL_HISTORY_MARK,
+  peelAdminModalHistory,
+  pushAdminModalHistory,
+  useAdminModalPopstate,
+} from '../../lib/adminWizardHistory.js'
 
 const PAGO_FORMA_OPTIONS = [
   { label: 'Efectivo', value: 'efectivo' },
@@ -105,6 +112,15 @@ export default function VentasSection({ onMessage }) {
   const [viewVenta, setViewVenta] = useState(null)
   const [pagoVenta, setPagoVenta] = useState(() => emptyPagoVenta())
   const pagoVentaCameraRef = useRef(null)
+  const wizardClosingFromPopRef = useRef(false)
+  const ignorePopRef = useAdminModalPopstate({
+    isOpen: wizardOpen,
+    onPopClose: () => {
+      wizardClosingFromPopRef.current = true
+      setWizardOpen(false)
+      setDialogAlert(null)
+    },
+  })
 
   const profilesOptions = useMemo(
     () => profiles.map((p) => ({ label: p.nombre || p.email || p.id, value: p.id })),
@@ -222,7 +238,19 @@ export default function VentasSection({ onMessage }) {
 
   function openWizard() {
     resetWizard()
+    wizardClosingFromPopRef.current = false
+    pushAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.ventaWizard)
     setWizardOpen(true)
+  }
+
+  function closeVentaWizardUi() {
+    if (wizardClosingFromPopRef.current) {
+      wizardClosingFromPopRef.current = false
+      return
+    }
+    peelAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.ventaWizard, ignorePopRef)
+    setWizardOpen(false)
+    setDialogAlert(null)
   }
 
   function setHeaderField(field, value) {
@@ -414,6 +442,7 @@ export default function VentasSection({ onMessage }) {
       }
 
       onMessage?.({ ok: true, text: 'Venta registrada correctamente.' })
+      peelAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.ventaWizard, ignorePopRef)
       setWizardOpen(false)
       resetWizard()
       refreshVentas()
@@ -603,17 +632,6 @@ export default function VentasSection({ onMessage }) {
         </div>
         <div className="admin-compra-field-full">
           <label>Comprobante (opcional)</label>
-          <input
-            ref={pagoVentaCameraRef}
-            type="file"
-            accept="image/*,application/pdf"
-            capture="environment"
-            onChange={(e) => {
-              onPagoVentaFile(e.target.files?.[0])
-              e.target.value = ''
-            }}
-            style={{ display: 'none' }}
-          />
           <Button
             type="button"
             icon="pi pi-camera"
@@ -651,8 +669,29 @@ export default function VentasSection({ onMessage }) {
     )
   }
 
+  const pagoFilePickerPortal =
+    typeof document !== 'undefined'
+      ? createPortal(
+          <input
+            ref={pagoVentaCameraRef}
+            type="file"
+            accept="image/*,application/pdf"
+            capture="environment"
+            onChange={(e) => {
+              onPagoVentaFile(e.target.files?.[0])
+              e.target.value = ''
+            }}
+            style={{ display: 'none' }}
+            aria-hidden
+            tabIndex={-1}
+          />,
+          document.body
+        )
+      : null
+
   return (
     <div className="admin-panel">
+      {pagoFilePickerPortal}
       <ConfirmDialog />
       <h2>Ventas</h2>
       <p className="lead">
@@ -739,19 +778,21 @@ export default function VentasSection({ onMessage }) {
         header="Nueva venta"
         visible={wizardOpen}
         style={{ width: 'min(56rem, 96vw)' }}
-        onHide={() => {
-          setWizardOpen(false)
-          setDialogAlert(null)
-        }}
+        onHide={closeVentaWizardUi}
         modal
         dismissableMask={false}
+        closable={false}
+        closeOnEscape={false}
+        focusOnShow={false}
+        draggable={false}
+        resizable={false}
       >
         <div className="admin-compra-wizard">
           {dialogAlert ? <Message severity={dialogAlert.severity} text={dialogAlert.text} className="admin-pr-message" /> : null}
           <Steps model={stepsVenta} activeIndex={wizardStep} readOnly className="admin-compra-steps" />
           <div className="admin-compra-step-content">{renderStepContent()}</div>
           <div className="admin-catalog-dialog-actions">
-            <Button type="button" label="Cancelar" severity="secondary" text onClick={() => setWizardOpen(false)} />
+            <Button type="button" label="Cancelar" severity="secondary" text onClick={closeVentaWizardUi} />
             {wizardStep > 0 ? (
               <Button type="button" label="Atrás" outlined severity="secondary" onClick={prevStep} />
             ) : null}
