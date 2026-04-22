@@ -51,22 +51,92 @@
     linear-gradient(165deg, #efe6dc 0%, #e0d2c4 38%, #d2bfa8 72%, #c4a892 100%);
 }
 
+.auth-visual-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 80%;
+  opacity: 0.46;
+  filter: saturate(0.45) sepia(0.18) contrast(0.96) brightness(1.02);
+}
+
+.auth-visual-photo-blend {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse 110% 85% at 18% 20%, rgba(255, 249, 241, 0.9), transparent 52%),
+    linear-gradient(165deg, rgba(239, 230, 220, 0.54) 0%, rgba(224, 210, 196, 0.6) 42%, rgba(210, 191, 168, 0.64) 100%);
+  mix-blend-mode: multiply;
+}
+
 .auth-visual .pampas-decor {
   position: absolute;
-  right: -5%;
-  bottom: -8%;
-  width: min(95%, 420px);
+  right: -4%;
+  bottom: -6%;
+  width: min(98%, 520px);
+  max-height: min(92%, 700px);
   height: auto;
-  color: #6b4f3e;
-  opacity: 0.55;
+  color: rgba(80, 58, 44, 0.72);
+  opacity: 0.62;
   pointer-events: none;
+  filter: drop-shadow(0 2px 12px rgba(60, 44, 32, 0.06));
+}
+
+.auth-visual--with-photo .pampas-decor {
+  right: -8%;
+  bottom: -10%;
+  width: min(72%, 380px);
+  opacity: 0.22;
+}
+
+.auth-visual .pampas-bunch--main,
+.auth-visual .pampas-bunch--mid {
+  color: rgba(80, 58, 44, 0.75);
+}
+
+/* Login: más pampas en el panel */
+.auth-visual .pampas-decor--dense {
+  width: min(102%, 560px);
+  max-height: min(95%, 720px);
+  opacity: 0.78;
+  filter: drop-shadow(0 3px 14px rgba(60, 44, 32, 0.08));
+}
+
+.auth-visual .pampas-bunch--back {
+  color: rgba(90, 68, 52, 0.55);
+}
+
+@media (max-width: 880px) {
+  .auth-visual .pampas-decor--dense {
+    width: min(125%, 520px);
+    opacity: 0.55;
+  }
 }
 
 @media (max-width: 880px) {
   .auth-visual .pampas-decor {
-    right: -20%;
-    bottom: -15%;
-    opacity: 0.35;
+    right: -12%;
+    bottom: -10%;
+    width: min(120%, 480px);
+    opacity: 0.42;
+  }
+
+  .auth-visual-photo {
+    object-position: center 75%;
+    opacity: 0.41;
+  }
+
+  .auth-visual-photo-blend {
+    background:
+      radial-gradient(ellipse 120% 90% at 25% 18%, rgba(255, 249, 241, 0.86), transparent 50%),
+      linear-gradient(165deg, rgba(239, 230, 220, 0.5) 0%, rgba(224, 210, 196, 0.58) 42%, rgba(210, 191, 168, 0.62) 100%);
+  }
+
+  .auth-visual--with-photo .pampas-decor {
+    width: min(86%, 360px);
+    opacity: 0.16;
   }
 }
 
@@ -103,6 +173,7 @@
 }
 
 .auth-card {
+  position: relative;
   width: 100%;
   max-width: 420px;
   padding: 2rem 1.75rem 1.5rem;
@@ -113,6 +184,25 @@
     0 1px 0 rgba(255, 255, 255, 0.75) inset,
     0 24px 48px var(--ann-shadow);
   backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.pampas-card-accent {
+  margin: -0.35rem 0 0.4rem;
+  color: var(--ann-terracotta);
+  opacity: 0.55;
+}
+
+.pampas-card-accent__svg {
+  display: block;
+  width: 100%;
+  height: 1.4rem;
+  min-height: 22px;
+}
+
+.pampas-card-accent--dense .pampas-card-accent__svg {
+  height: 1.75rem;
+  min-height: 28px;
 }
 
 .auth-brand {

@@ -28,7 +28,12 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout title="Iniciar sesión" subtitle="Tarjeta de fidelidad">
+    <AuthLayout
+      title="Iniciar sesión"
+      subtitle="Tarjeta de fidelidad"
+      visualImageSrc="/images/pampas-login.png"
+      visualImageAlt=""
+    >
       <div className="auth-page">
         <AuthCallbackAlert />
         {error ? <div className="error">{error}</div> : null}

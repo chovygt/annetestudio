@@ -6,6 +6,15 @@ import { Chart } from 'primereact/chart'
 import { Divider } from 'primereact/divider'
 import { Message } from 'primereact/message'
 import { Sidebar } from 'primereact/sidebar'
+import CatalogoClientasManualesSection from '../components/admin/CatalogoClientasManualesSection.jsx'
+import CatalogoProveedoresSection from '../components/admin/CatalogoProveedoresSection.jsx'
+import CatalogoServiciosSection from '../components/admin/CatalogoServiciosSection.jsx'
+import ComprasCuentaPorPagarReport from '../components/admin/ComprasCuentaPorPagarReport.jsx'
+import ComprasSection from '../components/admin/ComprasSection.jsx'
+import CobrosClientesSection from '../components/admin/CobrosClientesSection.jsx'
+import PagosProveedoresSection from '../components/admin/PagosProveedoresSection.jsx'
+import VentasReporteSection from '../components/admin/VentasReporteSection.jsx'
+import VentasSection from '../components/admin/VentasSection.jsx'
 import CerrarCuponeraDialog from '../components/admin/CerrarCuponeraDialog.jsx'
 import TokenQrDialog from '../components/admin/TokenQrDialog.jsx'
 import ViewTokenQrDialog from '../components/admin/ViewTokenQrDialog.jsx'
@@ -20,12 +29,45 @@ import './AdminDashboard.css'
 
 const SECTIONS = [
   { id: 'inicio', label: 'Inicio' },
-  { id: 'sellos', label: 'Sellos por cuponera' },
-  { id: 'descuentos', label: 'Porcentajes de descuentos' },
-  { id: 'token', label: 'Generar token' },
-  { id: 'status', label: 'Status cuponeras' },
-  { id: 'historial', label: 'Historial' },
-  { id: 'cerrar', label: 'Canjear cuponera' },
+  {
+    id: 'catalogos',
+    label: 'Catálogos',
+    children: [
+      { id: 'catalogo_proveedores', label: 'Proveedores' },
+      { id: 'catalogo_clientas', label: 'Clientas manuales' },
+      { id: 'catalogo_servicios', label: 'Servicios' },
+    ],
+  },
+  {
+    id: 'cupones',
+    label: 'Cupones',
+    children: [
+      { id: 'sellos', label: 'Sellos por cuponera' },
+      { id: 'descuentos', label: 'Porcentajes de descuentos' },
+      { id: 'token', label: 'Generar token' },
+      { id: 'status', label: 'Status cuponeras' },
+      { id: 'historial', label: 'Historial' },
+      { id: 'cerrar', label: 'Canjear cuponera' },
+    ],
+  },
+  {
+    id: 'compras_group',
+    label: 'Compras',
+    children: [
+      { id: 'compras', label: 'Registro' },
+      { id: 'compras_pagos', label: 'Pagos a proveedores' },
+      { id: 'compras_cxp', label: 'Cuenta por pagar' },
+    ],
+  },
+  {
+    id: 'ventas_group',
+    label: 'Ventas',
+    children: [
+      { id: 'ventas', label: 'Registro' },
+      { id: 'ventas_cobros', label: 'Cobros de clientas' },
+      { id: 'ventas_reporte', label: 'Reporte' },
+    ],
+  },
 ]
 
 async function fetchSettings() {
@@ -142,6 +184,12 @@ export default function AdminDashboard() {
   const { profile, user, signOut } = useAuth()
   const [section, setSection] = useState('inicio')
   const [menuOpen, setMenuOpen] = useState(false)
+  const [menuGroupsOpen, setMenuGroupsOpen] = useState({
+    catalogos: false,
+    cupones: false,
+    compras_group: false,
+    ventas_group: false,
+  })
   const [msg, setMsg] = useState(null)
 
   const [dashLoading, setDashLoading] = useState(true)
@@ -377,13 +425,31 @@ export default function AdminDashboard() {
     return m[t] || t
   }
 
-  const sectionTitle = SECTIONS.find((s) => s.id === section)?.label ?? 'Admin'
+  const sectionTitle =
+    SECTIONS.flatMap((s) => (s.children ? s.children : [s])).find((s) => s.id === section)?.label ??
+    'Admin'
 
   function goSection(id) {
     setSection(id)
     setMenuOpen(false)
     setMsg(null)
   }
+
+  function isChildSectionOfGroup(groupId, childId) {
+    const group = SECTIONS.find((s) => s.id === groupId)
+    return Boolean(group?.children?.some((child) => child.id === childId))
+  }
+
+  useEffect(() => {
+    const nextOpenState = {}
+    for (const s of SECTIONS) {
+      if (!s.children) continue
+      if (isChildSectionOfGroup(s.id, section)) nextOpenState[s.id] = true
+    }
+    if (Object.keys(nextOpenState).length > 0) {
+      setMenuGroupsOpen((prev) => ({ ...prev, ...nextOpenState }))
+    }
+  }, [section])
 
   return (
     <div className="admin-shell">
@@ -436,17 +502,52 @@ export default function AdminDashboard() {
         <p className="admin-drawer-email">{profile?.email}</p>
         <Divider className="admin-divider-tight" />
         <nav className="admin-drawer-nav" aria-label="Secciones">
-          {SECTIONS.map((s) => (
-            <Button
-              key={s.id}
-              type="button"
-              label={s.label}
-              onClick={() => goSection(s.id)}
-              className="admin-drawer-nav-btn"
-              outlined={section !== s.id}
-              severity={section === s.id ? undefined : 'secondary'}
-            />
-          ))}
+          {SECTIONS.map((s) =>
+            s.children ? (
+              <div key={s.id} className="admin-drawer-group">
+                <Button
+                  type="button"
+                  label={s.label}
+                  icon={menuGroupsOpen[s.id] ? 'pi pi-chevron-up' : 'pi pi-chevron-down'}
+                  iconPos="right"
+                  onClick={() =>
+                    setMenuGroupsOpen((prev) => ({
+                      ...prev,
+                      [s.id]: !prev[s.id],
+                    }))
+                  }
+                  className="admin-drawer-nav-btn admin-drawer-nav-group-btn"
+                  outlined
+                  severity="secondary"
+                />
+                {menuGroupsOpen[s.id] ? (
+                  <div className="admin-drawer-subnav">
+                    {s.children.map((child) => (
+                      <Button
+                        key={child.id}
+                        type="button"
+                        label={child.label}
+                        onClick={() => goSection(child.id)}
+                        className="admin-drawer-nav-btn admin-drawer-subnav-btn"
+                        outlined={section !== child.id}
+                        severity={section === child.id ? undefined : 'secondary'}
+                      />
+                    ))}
+                  </div>
+                ) : null}
+              </div>
+            ) : (
+              <Button
+                key={s.id}
+                type="button"
+                label={s.label}
+                onClick={() => goSection(s.id)}
+                className="admin-drawer-nav-btn"
+                outlined={section !== s.id}
+                severity={section === s.id ? undefined : 'secondary'}
+              />
+            )
+          )}
         </nav>
       </Sidebar>
 
@@ -615,6 +716,16 @@ export default function AdminDashboard() {
           )}
         </div>
       ) : null}
+
+      {section === 'catalogo_proveedores' ? <CatalogoProveedoresSection onMessage={setMsg} /> : null}
+      {section === 'catalogo_clientas' ? <CatalogoClientasManualesSection onMessage={setMsg} /> : null}
+      {section === 'catalogo_servicios' ? <CatalogoServiciosSection onMessage={setMsg} /> : null}
+      {section === 'compras' ? <ComprasSection onMessage={setMsg} /> : null}
+      {section === 'compras_pagos' ? <PagosProveedoresSection onMessage={setMsg} /> : null}
+      {section === 'compras_cxp' ? <ComprasCuentaPorPagarReport /> : null}
+      {section === 'ventas' ? <VentasSection onMessage={setMsg} /> : null}
+      {section === 'ventas_cobros' ? <CobrosClientesSection onMessage={setMsg} /> : null}
+      {section === 'ventas_reporte' ? <VentasReporteSection /> : null}
 
       {section === 'token' ? (
         <div className="admin-panel">

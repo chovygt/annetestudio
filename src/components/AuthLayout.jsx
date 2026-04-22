@@ -1,14 +1,35 @@
+import PampasCardAccent from './PampasCardAccent.jsx'
 import PampasDecor from './PampasDecor.jsx'
 
 const LOGO_SRC = '/images/logo-anneth.png'
 const INSTAGRAM_HREF = 'https://www.instagram.com/anneth.bs'
 
-export default function AuthLayout({ title, subtitle, children }) {
+export default function AuthLayout({
+  title,
+  subtitle,
+  children,
+  pampasDensity = 'default',
+  visualImageSrc = '',
+  visualImageAlt = '',
+}) {
+  const hasVisualImage = Boolean(visualImageSrc)
+
   return (
     <div className="auth-layout">
-      <div className="auth-visual" aria-hidden>
+      <div
+        className={hasVisualImage ? 'auth-visual auth-visual--with-photo' : 'auth-visual'}
+        aria-hidden
+      >
         <div className="auth-visual-gradient" />
-        <PampasDecor />
+        {hasVisualImage ? (
+          <img
+            src={visualImageSrc}
+            alt={visualImageAlt}
+            className="auth-visual-photo"
+          />
+        ) : null}
+        {hasVisualImage ? <div className="auth-visual-photo-blend" /> : null}
+        <PampasDecor density={pampasDensity} />
         <p className="auth-visual-quote">
           Natural · elegancia · cuidado
         </p>
@@ -16,6 +37,9 @@ export default function AuthLayout({ title, subtitle, children }) {
 
       <div className="auth-panel">
         <div className="auth-card">
+          <PampasCardAccent
+            variant={pampasDensity === 'dense' ? 'dense' : 'default'}
+          />
           <header className="auth-brand">
             <img
               src={LOGO_SRC}

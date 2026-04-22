@@ -48,3 +48,72 @@ export function barDatasetFromBuckets(buckets, label, backgroundColor, borderCol
     ],
   }
 }
+
+/** Bar chart con eje Y en moneda (valores decimales). */
+export const adminCurrencyBarOptions = {
+  maintainAspectRatio: false,
+  responsive: true,
+  plugins: {
+    legend: {
+      position: 'top',
+      labels: {
+        color: '#3d362e',
+        font: { family: 'Outfit, system-ui, sans-serif', size: 12 },
+      },
+    },
+  },
+  scales: {
+    x: {
+      ticks: { color: '#5c534a', maxRotation: 55, minRotation: 0, font: { size: 10 } },
+      grid: { color: 'rgba(44, 36, 28, 0.08)' },
+    },
+    y: {
+      beginAtZero: true,
+      ticks: {
+        color: '#5c534a',
+        callback: (value) => `$${Number(value).toFixed(0)}`,
+      },
+      grid: { color: 'rgba(44, 36, 28, 0.08)' },
+    },
+  },
+}
+
+export function barMoneyDatasetFromBuckets(buckets, label, backgroundColor, borderColor) {
+  return {
+    labels: buckets.map((b) => b.label),
+    datasets: [
+      {
+        label,
+        data: buckets.map((b) => b.amount),
+        backgroundColor,
+        borderColor,
+        borderWidth: 1,
+        borderRadius: 6,
+      },
+    ],
+  }
+}
+
+export const adminDoughnutOptions = {
+  maintainAspectRatio: false,
+  responsive: true,
+  plugins: {
+    legend: {
+      position: 'right',
+      labels: {
+        color: '#3d362e',
+        font: { family: 'Outfit, system-ui, sans-serif', size: 11 },
+        boxWidth: 12,
+      },
+    },
+  },
+}
+
+export const adminStackedCurrencyBarOptions = {
+  ...adminCurrencyBarOptions,
+  scales: {
+    ...adminCurrencyBarOptions.scales,
+    x: { ...adminCurrencyBarOptions.scales.x, stacked: true },
+    y: { ...adminCurrencyBarOptions.scales.y, stacked: true },
+  },
+}
