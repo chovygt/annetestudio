@@ -70,6 +70,12 @@ const SECTIONS = [
   },
 ]
 
+const ALL_ADMIN_SECTION_IDS = new Set(
+  SECTIONS.flatMap((s) => (s.children ? s.children.map((c) => c.id) : [s.id]))
+)
+
+const ADMIN_SECTION_STORAGE_KEY = 'tv_admin_section'
+
 async function fetchSettings() {
   const { data } = await supabase.from('program_settings').select('*').limit(1).maybeSingle()
   return data
@@ -182,7 +188,15 @@ async function fetchDashboardMetrics() {
 
 export default function AdminDashboard() {
   const { profile, user, signOut } = useAuth()
-  const [section, setSection] = useState('inicio')
+  const [section, setSection] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem(ADMIN_SECTION_STORAGE_KEY)
+      if (raw && ALL_ADMIN_SECTION_IDS.has(raw)) return raw
+    } catch {
+      /* modo privado / quota */
+    }
+    return 'inicio'
+  })
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuGroupsOpen, setMenuGroupsOpen] = useState({
     catalogos: false,
@@ -433,6 +447,11 @@ export default function AdminDashboard() {
     setSection(id)
     setMenuOpen(false)
     setMsg(null)
+    try {
+      sessionStorage.setItem(ADMIN_SECTION_STORAGE_KEY, id)
+    } catch {
+      /* ignorar */
+    }
   }
 
   function isChildSectionOfGroup(groupId, childId) {

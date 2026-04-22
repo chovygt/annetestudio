@@ -348,6 +348,7 @@ export default function PagosProveedoresSection({ onMessage }) {
           setDialogAlert(null)
         }}
         modal
+        dismissableMask={false}
       >
         <div className="admin-compra-wizard">
           {dialogAlert ? (
@@ -384,7 +385,10 @@ export default function PagosProveedoresSection({ onMessage }) {
                   type="file"
                   accept="image/*,application/pdf"
                   capture="environment"
-                  onChange={(e) => onFile(e.target.files?.[0])}
+                  onChange={(e) => {
+                    onFile(e.target.files?.[0])
+                    e.target.value = ''
+                  }}
                   style={{ display: 'none' }}
                 />
                 <Button

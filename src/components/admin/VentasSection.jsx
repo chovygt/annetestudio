@@ -608,7 +608,10 @@ export default function VentasSection({ onMessage }) {
             type="file"
             accept="image/*,application/pdf"
             capture="environment"
-            onChange={(e) => onPagoVentaFile(e.target.files?.[0])}
+            onChange={(e) => {
+              onPagoVentaFile(e.target.files?.[0])
+              e.target.value = ''
+            }}
             style={{ display: 'none' }}
           />
           <Button
@@ -741,6 +744,7 @@ export default function VentasSection({ onMessage }) {
           setDialogAlert(null)
         }}
         modal
+        dismissableMask={false}
       >
         <div className="admin-compra-wizard">
           {dialogAlert ? <Message severity={dialogAlert.severity} text={dialogAlert.text} className="admin-pr-message" /> : null}

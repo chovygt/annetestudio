@@ -270,6 +270,7 @@ export default function ComprasSection({ onMessage }) {
   function onCameraInputChange(event) {
     const file = event.target.files?.[0]
     onFacturaSelected(file)
+    event.target.value = ''
   }
 
   function clearFactura() {
@@ -630,7 +631,10 @@ export default function ComprasSection({ onMessage }) {
             type="file"
             accept="image/*,application/pdf"
             capture="environment"
-            onChange={(e) => onPagoComprobanteFile(e.target.files?.[0])}
+            onChange={(e) => {
+              onPagoComprobanteFile(e.target.files?.[0])
+              e.target.value = ''
+            }}
             style={{ display: 'none' }}
           />
           <Button
@@ -765,6 +769,7 @@ export default function ComprasSection({ onMessage }) {
           setDialogAlert(null)
         }}
         modal
+        dismissableMask={false}
       >
         <div className="admin-compra-wizard">
           {dialogAlert ? (
