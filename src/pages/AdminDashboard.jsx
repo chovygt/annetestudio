@@ -11,6 +11,8 @@ import CatalogoClientasManualesSection from '../components/admin/CatalogoClienta
 import CatalogoProveedoresSection from '../components/admin/CatalogoProveedoresSection.jsx'
 import CatalogoServiciosSection from '../components/admin/CatalogoServiciosSection.jsx'
 import MovimientosBancariosManualSection from '../components/admin/MovimientosBancariosManualSection.jsx'
+import ReporteBancosSection from '../components/admin/ReporteBancosSection.jsx'
+import TrasladoEntreCuentasSection from '../components/admin/TrasladoEntreCuentasSection.jsx'
 import ComprasCuentaPorPagarReport from '../components/admin/ComprasCuentaPorPagarReport.jsx'
 import ComprasSection from '../components/admin/ComprasSection.jsx'
 import CobrosClientesSection from '../components/admin/CobrosClientesSection.jsx'
@@ -75,6 +77,8 @@ const SECTIONS = [
     id: 'bancos_group',
     label: 'Bancos',
     children: [
+      { id: 'bancos_traslado', label: 'Traslado entre cuentas' },
+      { id: 'bancos_reporte', label: 'Reporte de bancos' },
       { id: 'bancos_ingresos', label: 'Ingresos manuales' },
       { id: 'bancos_retiros', label: 'Retiros manuales' },
     ],
@@ -752,6 +756,8 @@ export default function AdminDashboard() {
       {section === 'catalogo_clientas' ? <CatalogoClientasManualesSection onMessage={setMsg} /> : null}
       {section === 'catalogo_servicios' ? <CatalogoServiciosSection onMessage={setMsg} /> : null}
       {section === 'catalogo_bancos' ? <CatalogoBancosCuentasSection onMessage={setMsg} /> : null}
+      {section === 'bancos_traslado' ? <TrasladoEntreCuentasSection onMessage={setMsg} /> : null}
+      {section === 'bancos_reporte' ? <ReporteBancosSection /> : null}
       {section === 'bancos_ingresos' ? <MovimientosBancariosManualSection tipo="deposito" onMessage={setMsg} /> : null}
       {section === 'bancos_retiros' ? <MovimientosBancariosManualSection tipo="retiro" onMessage={setMsg} /> : null}
       {section === 'compras' ? <ComprasSection onMessage={setMsg} /> : null}
