@@ -6,9 +6,11 @@ import { Chart } from 'primereact/chart'
 import { Divider } from 'primereact/divider'
 import { Message } from 'primereact/message'
 import { Sidebar } from 'primereact/sidebar'
+import CatalogoBancosCuentasSection from '../components/admin/CatalogoBancosCuentasSection.jsx'
 import CatalogoClientasManualesSection from '../components/admin/CatalogoClientasManualesSection.jsx'
 import CatalogoProveedoresSection from '../components/admin/CatalogoProveedoresSection.jsx'
 import CatalogoServiciosSection from '../components/admin/CatalogoServiciosSection.jsx'
+import MovimientosBancariosManualSection from '../components/admin/MovimientosBancariosManualSection.jsx'
 import ComprasCuentaPorPagarReport from '../components/admin/ComprasCuentaPorPagarReport.jsx'
 import ComprasSection from '../components/admin/ComprasSection.jsx'
 import CobrosClientesSection from '../components/admin/CobrosClientesSection.jsx'
@@ -36,6 +38,7 @@ const SECTIONS = [
       { id: 'catalogo_proveedores', label: 'Proveedores' },
       { id: 'catalogo_clientas', label: 'Clientas manuales' },
       { id: 'catalogo_servicios', label: 'Servicios' },
+      { id: 'catalogo_bancos', label: 'Bancos y cuentas' },
     ],
   },
   {
@@ -66,6 +69,14 @@ const SECTIONS = [
       { id: 'ventas', label: 'Registro' },
       { id: 'ventas_cobros', label: 'Cobros de clientas' },
       { id: 'ventas_reporte', label: 'Reporte' },
+    ],
+  },
+  {
+    id: 'bancos_group',
+    label: 'Bancos',
+    children: [
+      { id: 'bancos_ingresos', label: 'Ingresos manuales' },
+      { id: 'bancos_retiros', label: 'Retiros manuales' },
     ],
   },
 ]
@@ -203,6 +214,7 @@ export default function AdminDashboard() {
     cupones: false,
     compras_group: false,
     ventas_group: false,
+    bancos_group: false,
   })
   const [msg, setMsg] = useState(null)
 
@@ -739,6 +751,9 @@ export default function AdminDashboard() {
       {section === 'catalogo_proveedores' ? <CatalogoProveedoresSection onMessage={setMsg} /> : null}
       {section === 'catalogo_clientas' ? <CatalogoClientasManualesSection onMessage={setMsg} /> : null}
       {section === 'catalogo_servicios' ? <CatalogoServiciosSection onMessage={setMsg} /> : null}
+      {section === 'catalogo_bancos' ? <CatalogoBancosCuentasSection onMessage={setMsg} /> : null}
+      {section === 'bancos_ingresos' ? <MovimientosBancariosManualSection tipo="deposito" onMessage={setMsg} /> : null}
+      {section === 'bancos_retiros' ? <MovimientosBancariosManualSection tipo="retiro" onMessage={setMsg} /> : null}
       {section === 'compras' ? <ComprasSection onMessage={setMsg} /> : null}
       {section === 'compras_pagos' ? <PagosProveedoresSection onMessage={setMsg} /> : null}
       {section === 'compras_cxp' ? <ComprasCuentaPorPagarReport /> : null}
