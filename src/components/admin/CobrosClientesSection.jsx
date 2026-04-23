@@ -470,7 +470,7 @@ export default function CobrosClientesSection({ onMessage }) {
                 />
               </div>
               <div className="admin-compra-field-full">
-                <label>Comprobante (foto o archivo)</label>
+                <label>Comprobante (foto o archivo, opcional)</label>
                 <Button
                   type="button"
                   icon="pi pi-camera"

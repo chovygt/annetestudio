@@ -14,6 +14,7 @@ import { Message } from 'primereact/message'
 import { SelectButton } from 'primereact/selectbutton'
 import { Steps } from 'primereact/steps'
 import { supabase } from '../../lib/supabaseClient'
+import { prepareFileForFacturasUpload } from '../../lib/resizeImageForUpload.js'
 import { uploadComprobanteToFacturasBucket } from '../../lib/uploadComprobanteFacturas'
 import {
   ADMIN_MODAL_HISTORY_MARK,
@@ -322,12 +323,13 @@ export default function ComprasSection({ onMessage }) {
 
   async function uploadFacturaIfNeeded() {
     if (!facturaFile) return header.foto_factura_url?.trim() || null
-    const ext = (facturaFile.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
+    const ready = await prepareFileForFacturasUpload(facturaFile)
+    const ext = (ready.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
     const safeExt = ext || 'jpg'
     const path = `compras/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${safeExt}`
-    const { data, error } = await supabase.storage.from('facturas').upload(path, facturaFile, {
+    const { data, error } = await supabase.storage.from('facturas').upload(path, ready, {
       upsert: false,
-      contentType: facturaFile.type || 'image/jpeg',
+      contentType: ready.type || 'image/jpeg',
     })
     if (error) throw error
     const pub = supabase.storage.from('facturas').getPublicUrl(data.path)
@@ -567,7 +569,7 @@ export default function ComprasSection({ onMessage }) {
       return (
         <div className="admin-compra-step-grid">
         <div className="admin-compra-field-full">
-          <label>Foto de factura física</label>
+          <label>Foto de factura física (opcional)</label>
             <Button
               type="button"
               icon="pi pi-camera"
@@ -575,7 +577,7 @@ export default function ComprasSection({ onMessage }) {
               onClick={() => cameraInputRef.current?.click()}
             />
           <small className="admin-compra-help">
-            En móvil abrirá la cámara trasera por defecto. En desktop abrirá selector de archivo.
+            Puedes omitir la foto y la URL. En móvil abrirá la cámara trasera; en desktop, selector de archivo.
           </small>
         </div>
         <div className="admin-compra-field-full">
@@ -722,8 +724,8 @@ export default function ComprasSection({ onMessage }) {
       <ConfirmDialog />
       <h2>Compras</h2>
       <p className="lead">
-        Registra compras: encabezado, detalle, factura y, si la compra es al contado, un paso extra para el
-        pago al proveedor. Consulta el historial en el grid.
+        Registra compras: encabezado, detalle, paso de factura (foto o URL, ambos opcionales) y, si la
+        compra es al contado, un paso extra para el pago al proveedor. Consulta el historial en el grid.
       </p>
 
       <div className="admin-catalog-head">

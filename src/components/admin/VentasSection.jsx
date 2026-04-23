@@ -696,7 +696,8 @@ export default function VentasSection({ onMessage }) {
       <h2>Ventas</h2>
       <p className="lead">
         Registra ventas: encabezado, detalle; si la venta es al contado, un paso extra para forma de
-        pago y comprobante. Las ventas a crédito se cobran luego en &quot;Cobros de clientas&quot;.
+        pago y comprobante (foto/URL, opcionales). Las ventas a crédito se cobran luego en &quot;Cobros
+        de clientas&quot;.
       </p>
 
       <div className="admin-catalog-head">
