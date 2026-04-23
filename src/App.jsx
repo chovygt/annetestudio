@@ -19,10 +19,15 @@ function RequireAuth({ children }) {
 }
 
 function RequireAdmin({ children }) {
-  const { profile, loading } = useAuth()
+  const { session, profile, loading } = useAuth()
   if (loading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando…</div>
+    )
+  }
+  if (session?.user && !profile) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando perfil…</div>
     )
   }
   if (profile?.role !== 'administrador') {
@@ -32,10 +37,15 @@ function RequireAdmin({ children }) {
 }
 
 function HomeGate() {
-  const { profile, loading } = useAuth()
+  const { session, profile, loading } = useAuth()
   if (loading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando…</div>
+    )
+  }
+  if (session?.user && !profile) {
+    return (
+      <div style={{ padding: '2rem', textAlign: 'center' }}>Cargando perfil…</div>
     )
   }
   if (profile?.role === 'administrador') {

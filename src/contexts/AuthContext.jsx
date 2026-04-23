@@ -49,21 +49,16 @@ export function AuthProvider({ children, initialAuthLinkError = null }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, s) => {
+    } = supabase.auth.onAuthStateChange((_event, s) => {
       setSession(s)
       if (!s?.user?.id) {
         setProfile(null)
         setLoading(false)
         return
       }
-      // Tras cámara/archivo, foco o refresco de token, no desmontar toda la app (RequireAuth
-      // mostraría "Cargando" y se cerrarían modales/estado del admin).
-      if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
-        void loadProfile(s.user.id)
-        return
-      }
-      setLoading(true)
-      loadProfile(s.user.id).finally(() => setLoading(false))
+      // Nunca poner loading=true aquí: SIGNED_IN, TOKEN_REFRESHED, etc. desmontan RequireAuth/Admin
+      // y se cierran modales (p. ej. al volver de la cámara). Solo se refresca el perfil en segundo plano.
+      void loadProfile(s.user.id)
     })
 
     return () => {
