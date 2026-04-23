@@ -19,8 +19,21 @@ import {
   pushAdminModalHistory,
   useAdminModalPopstate,
 } from '../../lib/adminWizardHistory.js'
+import { adminInputNumberCurrencyProps, formatMoneyGtq } from '../../lib/adminFormatMoney.js'
+import {
+  fetchCuentasBancariasOptions,
+  formaPagoRequiereCuentaBancaria,
+  insertMovimientoAutomaticoEgresoPago,
+  labelCuentaBancariaDesdePagoRow,
+} from '../../lib/movimientosBancarios.js'
 
 const FORMA_PAGO_LABELS = { efectivo: 'Efectivo', transferencia: 'Transferencia', tarjeta: 'Tarjeta' }
+
+const FORMA_PAGO_OPTIONS = [
+  { label: 'Efectivo', value: 'efectivo' },
+  { label: 'Transferencia', value: 'transferencia' },
+  { label: 'Tarjeta', value: 'tarjeta' },
+]
 
 const WIZARD_STEPS = [{ label: 'Pago' }, { label: 'Aplicar a facturas' }]
 
@@ -37,10 +50,6 @@ function formatDate(value) {
   if (!value) return '—'
   const d = new Date(value)
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleDateString('es')
-}
-
-function formatMoney(n) {
-  return `$${Number(n || 0).toFixed(2)}`
 }
 
 function emptyLine() {
@@ -63,6 +72,9 @@ export default function PagosProveedoresSection({ onMessage }) {
   const [saldos, setSaldos] = useState([])
   const [comprasInfo, setComprasInfo] = useState(new Map())
   const [viewPago, setViewPago] = useState(null)
+  const [formaPago, setFormaPago] = useState('efectivo')
+  const [cuentaBancariaId, setCuentaBancariaId] = useState(null)
+  const [cuentasBancariasOptions, setCuentasBancariasOptions] = useState([])
   const cameraRef = useRef(null)
   const wizardClosingFromPopRef = useRef(false)
   const ignorePopRef = useAdminModalPopstate({
@@ -85,7 +97,9 @@ export default function PagosProveedoresSection({ onMessage }) {
         comentario,
         comprobante_url,
         forma_pago,
+        cuenta_bancaria_id,
         created_at,
+        cuentas_bancarias ( id, nombre, bancos ( nombre ) ),
         pagos_proveedor_aplicacion ( id, compra_id, monto_aplicado )
       `
       )
@@ -142,7 +156,7 @@ export default function PagosProveedoresSection({ onMessage }) {
     return saldos.map((s) => {
       const info = comprasInfo.get(s.compra_id)
       const prov = info?.proveedor || '—'
-      const label = `${prov} · ${formatDate(s.fecha_compra)} · saldo ${formatMoney(s.saldo_pendiente)}`
+      const label = `${prov} · ${formatDate(s.fecha_compra)} · saldo ${formatMoneyGtq(s.saldo_pendiente)}`
       return {
         value: s.compra_id,
         label,
@@ -162,12 +176,23 @@ export default function PagosProveedoresSection({ onMessage }) {
     setComprobanteFile(null)
     setComprobanteUrlManual('')
     setPreviewUrl('')
+    setFormaPago('efectivo')
+    setCuentaBancariaId(null)
     setLineas([emptyLine()])
   }
 
   function openWizard() {
     resetWizard()
     loadSaldos()
+    ;(async () => {
+      try {
+        const opts = await fetchCuentasBancariasOptions(supabase)
+        setCuentasBancariasOptions(opts)
+      } catch {
+        setCuentasBancariasOptions([])
+        onMessage?.({ ok: false, text: 'No se pudo cargar el catálogo de cuentas bancarias.' })
+      }
+    })()
     wizardClosingFromPopRef.current = false
     pushAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.pagoProveedorWizard)
     setWizardOpen(true)
@@ -192,6 +217,13 @@ export default function PagosProveedoresSection({ onMessage }) {
 
   function validateStep0() {
     if (!fechaPago) return 'Indica la fecha del pago.'
+    if (!formaPago) return 'Selecciona la forma de pago.'
+    if (formaPagoRequiereCuentaBancaria(formaPago)) {
+      if (cuentasBancariasOptions.length < 1) {
+        return 'No hay cuentas bancarias activas. Crea bancos y cuentas en la base o desde el módulo de bancos.'
+      }
+      if (!cuentaBancariaId) return 'Elige la cuenta bancaria de la que sale el retiro (obligatoria con transferencia o tarjeta).'
+    }
     return ''
   }
 
@@ -206,7 +238,7 @@ export default function PagosProveedoresSection({ onMessage }) {
       const max = optionsByCompra.get(l.compra_id)?.saldo
       if (max == null) return 'Compra no válida en el listado.'
       if (Number(l.monto) - max > 0.0001) {
-        return `El monto no puede superar el saldo (${formatMoney(max)}).`
+        return `El monto no puede superar el saldo (${formatMoneyGtq(max)}).`
       }
     }
     return ''
@@ -249,18 +281,34 @@ export default function PagosProveedoresSection({ onMessage }) {
       if (comprobanteFile) {
         url = await uploadComprobanteToFacturasBucket(comprobanteFile, 'pagos_proveedor')
       }
+      const withData = lineas.filter((l) => l.compra_id && Number(l.monto) > 0)
+      const montoTotal = withData.reduce((a, l) => a + Number(l.monto), 0)
+
       const { data: pago, error: ep } = await supabase
         .from('pagos_proveedor')
         .insert({
           fecha_pago: toIsoDate(fechaPago),
-        comentario: String(comentario || '').trim() || null,
-        comprobante_url: url,
+          comentario: String(comentario || '').trim() || null,
+          comprobante_url: url,
+          forma_pago: formaPago,
+          cuenta_bancaria_id: formaPagoRequiereCuentaBancaria(formaPago) ? cuentaBancariaId : null,
         })
         .select('id')
         .single()
-      if (ep) throw ep
+      if (ep) {
+        if (ep.message?.includes('cuenta_bancaria') || ep.message?.includes('column')) {
+          throw new Error(
+            'Falta la columna `cuenta_bancaria_id` en `pagos_proveedor`. Ejecuta en Supabase `supabase/009_bancos_cuentas_movimientos.sql`.'
+          )
+        }
+        if (ep.message?.includes('forma_pago')) {
+          throw new Error(
+            'Falta `forma_pago` en `pagos_proveedor`. Ejecuta `supabase/007_contado_pago_venta_y_proveedor.sql`.'
+          )
+        }
+        throw ep
+      }
 
-      const withData = lineas.filter((l) => l.compra_id && Number(l.monto) > 0)
       const apps = withData.map((l) => ({
         pago_proveedor_id: pago.id,
         compra_id: l.compra_id,
@@ -271,6 +319,25 @@ export default function PagosProveedoresSection({ onMessage }) {
         await supabase.from('pagos_proveedor').delete().eq('id', pago.id)
         throw ea
       }
+
+      if (formaPagoRequiereCuentaBancaria(formaPago) && cuentaBancariaId) {
+        const { error: em } = await insertMovimientoAutomaticoEgresoPago(supabase, {
+          pagoProveedorId: pago.id,
+          cuentaBancariaId: cuentaBancariaId,
+          monto: montoTotal,
+          fechaIso: toIsoDate(fechaPago),
+        })
+        if (em) {
+          await supabase.from('pagos_proveedor').delete().eq('id', pago.id)
+          if (em.message?.includes('movimientos_cuenta_bancaria') || em.message?.includes('column')) {
+            throw new Error(
+              'Falta la tabla `movimientos_cuenta_bancaria` o columnas. Ejecuta `supabase/009_bancos_cuentas_movimientos.sql`.'
+            )
+          }
+          throw em
+        }
+      }
+
       onMessage?.({ ok: true, text: 'Pago registrado y aplicado a las facturas.' })
       peelAdminModalHistory(ADMIN_MODAL_HISTORY_MARK.pagoProveedorWizard, ignorePopRef)
       setWizardOpen(false)
@@ -347,8 +414,13 @@ export default function PagosProveedoresSection({ onMessage }) {
             body={(r) => (r.forma_pago ? FORMA_PAGO_LABELS[r.forma_pago] || r.forma_pago : '—')}
           />
           <Column
+            header="Cuenta"
+            style={{ minWidth: '10rem' }}
+            body={(r) => labelCuentaBancariaDesdePagoRow(r)}
+          />
+          <Column
             header="Monto aplicado"
-            body={(r) => formatMoney(r.montoTotal)}
+            body={(r) => formatMoneyGtq(r.montoTotal)}
             style={{ width: '9rem' }}
             sortable
           />
@@ -420,6 +492,44 @@ export default function PagosProveedoresSection({ onMessage }) {
                   className="w-full"
                 />
               </div>
+              <div>
+                <label htmlFor="pp-forma">Forma de pago</label>
+                <Dropdown
+                  id="pp-forma"
+                  value={formaPago}
+                  options={FORMA_PAGO_OPTIONS}
+                  onChange={(e) => {
+                    if (dialogAlert) setDialogAlert(null)
+                    setFormaPago(e.value)
+                    if (!formaPagoRequiereCuentaBancaria(e.value)) setCuentaBancariaId(null)
+                  }}
+                  className="w-full"
+                />
+              </div>
+              {formaPagoRequiereCuentaBancaria(formaPago) ? (
+                <div className="admin-compra-field-full">
+                  <label htmlFor="pp-cuenta">Cuenta bancaria (retiro) *</label>
+                  <Dropdown
+                    id="pp-cuenta"
+                    value={cuentaBancariaId}
+                    options={cuentasBancariasOptions}
+                    onChange={(e) => {
+                      if (dialogAlert) setDialogAlert(null)
+                      setCuentaBancariaId(e.value)
+                    }}
+                    optionLabel="label"
+                    optionValue="value"
+                    placeholder="Selecciona la cuenta de donde sale el pago"
+                    filter
+                    className="w-full"
+                    showClear={false}
+                  />
+                  <small className="admin-compra-help">
+                    Obligatoria con transferencia o tarjeta: se registrará un egreso automático en
+                    movimientos bancarios.
+                  </small>
+                </div>
+              ) : null}
               <div className="admin-compra-field-full">
                 <label htmlFor="pp-comentario">Comentario (opcional)</label>
                 <InputTextarea
@@ -438,9 +548,12 @@ export default function PagosProveedoresSection({ onMessage }) {
                   label="Tomar o elegir archivo"
                   onClick={() => cameraRef.current?.click()}
                 />
+                <small className="admin-compra-help">
+                  Puedes omitir archivo y URL. En móvil abre la cámara trasera; en desktop, selector de archivos.
+                </small>
               </div>
               <div className="admin-compra-field-full">
-                <label htmlFor="pp-url">URL de comprobante (si ya está subido en otro lado)</label>
+                <label htmlFor="pp-url">URL de comprobante (opcional)</label>
                 <InputText
                   id="pp-url"
                   value={comprobanteUrlManual}
@@ -484,9 +597,7 @@ export default function PagosProveedoresSection({ onMessage }) {
                       <InputNumber
                         value={line.monto}
                         onValueChange={(e) => setLine(line.rowId, { monto: e.value ?? null })}
-                        mode="currency"
-                        currency="USD"
-                        locale="es-SV"
+                        {...adminInputNumberCurrencyProps}
                         min={0.01}
                         minFractionDigits={2}
                         maxFractionDigits={2}
@@ -495,7 +606,7 @@ export default function PagosProveedoresSection({ onMessage }) {
                       />
                       {line.compra_id ? (
                         <small className="admin-compra-help">
-                          Saldo: {formatMoney(optionsByCompra.get(line.compra_id)?.saldo)}
+                          Saldo: {formatMoneyGtq(optionsByCompra.get(line.compra_id)?.saldo)}
                         </small>
                       ) : null}
                       <Button
@@ -550,6 +661,13 @@ export default function PagosProveedoresSection({ onMessage }) {
               <strong>Fecha:</strong> {formatDate(viewPago.fecha_pago)}
             </p>
             <p>
+              <strong>Forma de pago:</strong>{' '}
+              {viewPago.forma_pago ? FORMA_PAGO_LABELS[viewPago.forma_pago] || viewPago.forma_pago : '—'}
+            </p>
+            <p>
+              <strong>Cuenta bancaria:</strong> {labelCuentaBancariaDesdePagoRow(viewPago)}
+            </p>
+            <p>
               <strong>Comentario:</strong> {viewPago.comentario || '—'}
             </p>
             {viewPago.comprobante_url ? (
@@ -561,10 +679,10 @@ export default function PagosProveedoresSection({ onMessage }) {
             ) : null}
             <DataTable value={viewPago.aplicaciones || []} dataKey="id" size="small" responsiveLayout="scroll">
               <Column field="compra_id" header="ID compra" />
-              <Column header="Monto" body={(a) => formatMoney(a.monto_aplicado)} />
+              <Column header="Monto" body={(a) => formatMoneyGtq(a.monto_aplicado)} />
             </DataTable>
             <p className="admin-compra-total-inline">
-              <strong>Total aplicado:</strong> {formatMoney(viewPago.montoTotal)}
+              <strong>Total aplicado:</strong> {formatMoneyGtq(viewPago.montoTotal)}
             </p>
           </div>
         ) : null}

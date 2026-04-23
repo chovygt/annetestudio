@@ -1,3 +1,5 @@
+import { formatMoneyGtqInteger } from './adminFormatMoney.js'
+
 /** Opciones Chart.js (PrimeReact `Chart`) alineadas con look tierra / Anneth. */
 export const adminBarChartOptions = {
   maintainAspectRatio: false,
@@ -71,7 +73,7 @@ export const adminCurrencyBarOptions = {
       beginAtZero: true,
       ticks: {
         color: '#5c534a',
-        callback: (value) => `$${Number(value).toFixed(0)}`,
+        callback: (value) => formatMoneyGtqInteger(value),
       },
       grid: { color: 'rgba(44, 36, 28, 0.08)' },
     },

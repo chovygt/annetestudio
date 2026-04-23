@@ -13,6 +13,7 @@ import {
 } from '../../lib/adminChartTheme.js'
 import { lastNMonthMoneyBuckets, sumMoneyIntoMonthBuckets } from '../../lib/adminMoneyBuckets.js'
 import { supabase } from '../../lib/supabaseClient.js'
+import { formatMoneyGtq } from '../../lib/adminFormatMoney.js'
 
 function parseDateOnly(s) {
   if (!s) return null
@@ -194,16 +195,16 @@ export default function ComprasCuentaPorPagarReport() {
         <>
           <div className="admin-kpi-grid">
             <Card className="admin-p-card" title="Total cuenta por pagar" subTitle="(todas las compras)">
-              <span className="admin-kpi-num-prime">${totales.total.toFixed(2)}</span>
+              <span className="admin-kpi-num-prime">{formatMoneyGtq(totales.total)}</span>
             </Card>
             <Card className="admin-p-card" title="Monto vencido" subTitle="Vencimiento anterior a hoy">
               <span className="admin-kpi-num-prime" style={{ color: '#8c4a38' }}>
-                ${totales.vencido.toFixed(2)}
+                {formatMoneyGtq(totales.vencido)}
               </span>
             </Card>
             <Card className="admin-p-card" title="Por vencer" subTitle="Vencimiento a partir de hoy">
               <span className="admin-kpi-num-prime" style={{ color: '#556b5f' }}>
-                ${totales.porVencer.toFixed(2)}
+                {formatMoneyGtq(totales.porVencer)}
               </span>
             </Card>
           </div>
@@ -236,7 +237,7 @@ export default function ComprasCuentaPorPagarReport() {
               <Column header="Vencimiento" body={(r) => formatDate(r.vencimiento)} sortable />
               <Column
                 header="Monto"
-                body={(r) => `$${r.total.toFixed(2)}`}
+                body={(r) => formatMoneyGtq(r.total)}
                 style={{ width: '8rem' }}
               />
               <Column

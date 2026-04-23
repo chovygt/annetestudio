@@ -9,6 +9,7 @@ import { InputText } from 'primereact/inputtext'
 import { InputTextarea } from 'primereact/inputtextarea'
 import { Tag } from 'primereact/tag'
 import { supabase } from '../../lib/supabaseClient'
+import { adminInputNumberCurrencyProps, formatMoneyGtq } from '../../lib/adminFormatMoney.js'
 
 function formatDate(value) {
   if (!value) return '—'
@@ -152,7 +153,7 @@ export default function CatalogoServiciosSection({ onMessage }) {
         >
           <Column field="codigo" header="Código" sortable />
           <Column field="descripcion" header="Descripción" />
-          <Column header="Precio desde" body={(row) => `$${Number(row.precio_desde || 0).toFixed(2)}`} sortable />
+          <Column header="Precio desde" body={(row) => formatMoneyGtq(row.precio_desde)} sortable />
           <Column
             header="Estado"
             body={(row) => (
@@ -213,9 +214,7 @@ export default function CatalogoServiciosSection({ onMessage }) {
             min={0}
             minFractionDigits={2}
             maxFractionDigits={2}
-            mode="currency"
-            currency="USD"
-            locale="es-SV"
+            {...adminInputNumberCurrencyProps}
             onValueChange={(e) => updateField('precio_desde', e.value ?? 0)}
           />
           <label htmlFor="srv-activo" className="admin-catalog-check">

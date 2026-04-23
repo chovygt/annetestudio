@@ -21,6 +21,13 @@ import {
   pushAdminModalHistory,
   useAdminModalPopstate,
 } from '../../lib/adminWizardHistory.js'
+import { adminInputNumberCurrencyProps, formatMoneyGtq } from '../../lib/adminFormatMoney.js'
+import {
+  fetchCuentasBancariasOptions,
+  formaPagoRequiereCuentaBancaria,
+  insertMovimientoAutomaticoIngresoVentaContado,
+  labelCuentaBancariaDesdePagoRow,
+} from '../../lib/movimientosBancarios.js'
 
 const PAGO_FORMA_OPTIONS = [
   { label: 'Efectivo', value: 'efectivo' },
@@ -91,6 +98,7 @@ function calcTotal(lines = []) {
 function emptyPagoVenta() {
   return {
     forma_pago: 'efectivo',
+    cuenta_bancaria_pago_id: null,
     comprobanteFile: null,
     comprobanteUrlManual: '',
     preview: '',
@@ -111,6 +119,7 @@ export default function VentasSection({ onMessage }) {
   const [detalle, setDetalle] = useState([emptyLine()])
   const [viewVenta, setViewVenta] = useState(null)
   const [pagoVenta, setPagoVenta] = useState(() => emptyPagoVenta())
+  const [cuentasBancariasOptions, setCuentasBancariasOptions] = useState([])
   const pagoVentaCameraRef = useRef(null)
   const wizardClosingFromPopRef = useRef(false)
   const ignorePopRef = useAdminModalPopstate({
@@ -156,6 +165,8 @@ export default function VentasSection({ onMessage }) {
         comentario,
         forma_pago,
         pago_comprobante_url,
+        cuenta_bancaria_pago_id,
+        cuentas_bancarias ( id, nombre, bancos ( nombre ) ),
         created_at,
         profiles ( nombre, email ),
         clientas_manuales ( nombre, email, telefono ),
@@ -204,6 +215,12 @@ export default function VentasSection({ onMessage }) {
     setProfiles(rProfiles.data || [])
     setManuales(rManuales.data || [])
     setServicios(rServicios.data || [])
+    try {
+      setCuentasBancariasOptions(await fetchCuentasBancariasOptions(supabase))
+    } catch {
+      setCuentasBancariasOptions([])
+      onMessage?.({ ok: false, text: 'No se pudo cargar el catálogo de cuentas bancarias.' })
+    }
   }
 
   useEffect(() => {
@@ -352,6 +369,14 @@ export default function VentasSection({ onMessage }) {
     }
     if (step === 2) {
       if (!pagoVenta.forma_pago) return 'Indica la forma de pago recibida.'
+      if (formaPagoRequiereCuentaBancaria(pagoVenta.forma_pago)) {
+        if (cuentasBancariasOptions.length < 1) {
+          return 'No hay cuentas bancarias activas. Crea bancos y cuentas en el catálogo.'
+        }
+        if (!pagoVenta.cuenta_bancaria_pago_id) {
+          return 'Elige la cuenta bancaria del ingreso (obligatoria con transferencia o tarjeta).'
+        }
+      }
       return ''
     }
     return ''
@@ -407,7 +432,13 @@ export default function VentasSection({ onMessage }) {
         dias_credito: Number(header.dias_credito) || 0,
         comentario: String(header.comentario || '').trim() || null,
         ...(needPago
-          ? { forma_pago: pagoVenta.forma_pago, pago_comprobante_url: pagoComprobUrl }
+          ? {
+              forma_pago: pagoVenta.forma_pago,
+              pago_comprobante_url: pagoComprobUrl,
+              cuenta_bancaria_pago_id: formaPagoRequiereCuentaBancaria(pagoVenta.forma_pago)
+                ? pagoVenta.cuenta_bancaria_pago_id
+                : null,
+            }
           : {}),
       }
       const { data: venta, error: ventaError } = await supabase
@@ -416,6 +447,11 @@ export default function VentasSection({ onMessage }) {
         .select('id')
         .single()
       if (ventaError) {
+        if (ventaError.message?.includes('cuenta_bancaria_pago') && ventaError.message?.includes('column')) {
+          throw new Error(
+            'Falta `cuenta_bancaria_pago_id` en `ventas`. Ejecuta `supabase/009_bancos_cuentas_movimientos.sql`.'
+          )
+        }
         if (
           ventaError.message?.includes('forma_pago') ||
           ventaError.message?.includes('pago_comprobante') ||
@@ -439,6 +475,29 @@ export default function VentasSection({ onMessage }) {
       if (detError) {
         await supabase.from('ventas').delete().eq('id', venta.id)
         throw detError
+      }
+
+      if (
+        needPago &&
+        formaPagoRequiereCuentaBancaria(pagoVenta.forma_pago) &&
+        pagoVenta.cuenta_bancaria_pago_id
+      ) {
+        const totalPago = calcTotal(detalle)
+        const { error: em } = await insertMovimientoAutomaticoIngresoVentaContado(supabase, {
+          ventaId: venta.id,
+          cuentaBancariaId: pagoVenta.cuenta_bancaria_pago_id,
+          monto: totalPago,
+          fechaIso: toIsoDate(header.fecha_venta) || toIsoDate(new Date()),
+        })
+        if (em) {
+          await supabase.from('ventas').delete().eq('id', venta.id)
+          if (em.message?.includes('movimientos_cuenta_bancaria') || em.message?.includes('column')) {
+            throw new Error(
+              'Falta la tabla o columnas de movimientos bancarios. Ejecuta `supabase/009_bancos_cuentas_movimientos.sql`.'
+            )
+          }
+          throw em
+        }
       }
 
       onMessage?.({ ok: true, text: 'Venta registrada correctamente.' })
@@ -584,9 +643,7 @@ export default function VentasSection({ onMessage }) {
             <InputNumber
               value={line.precio_unitario}
               onValueChange={(e) => setDetalleLine(line.rowId, { precio_unitario: e.value ?? 0 })}
-              mode="currency"
-              currency="USD"
-              locale="es-SV"
+              {...adminInputNumberCurrencyProps}
               min={0}
               minFractionDigits={2}
               maxFractionDigits={2}
@@ -606,7 +663,7 @@ export default function VentasSection({ onMessage }) {
         ))}
         <div className="admin-compra-detalle-actions">
           <Button type="button" icon="pi pi-plus" label="Agregar línea" onClick={addLine} />
-          <span className="admin-compra-total">Total estimado: ${calcTotal(detalle).toFixed(2)}</span>
+          <span className="admin-compra-total">Total estimado: {formatMoneyGtq(calcTotal(detalle))}</span>
         </div>
       </div>
       )
@@ -615,7 +672,7 @@ export default function VentasSection({ onMessage }) {
     return (
       <div className="admin-compra-step-grid">
         <p className="admin-compra-help" style={{ marginTop: 0 }}>
-          Pago inmediato por <strong>${calcTotal(detalle).toFixed(2)}</strong> (mismo total de la venta).
+          Pago inmediato por <strong>{formatMoneyGtq(calcTotal(detalle))}</strong> (mismo total de la venta).
         </p>
         <div>
           <label htmlFor="venta-pago-forma">Forma de pago</label>
@@ -625,19 +682,50 @@ export default function VentasSection({ onMessage }) {
             options={PAGO_FORMA_OPTIONS}
             onChange={(e) => {
               if (dialogAlert) setDialogAlert(null)
-              setPagoVenta((p) => ({ ...p, forma_pago: e.value }))
+              const v = e.value
+              setPagoVenta((p) => ({
+                ...p,
+                forma_pago: v,
+                cuenta_bancaria_pago_id: formaPagoRequiereCuentaBancaria(v) ? p.cuenta_bancaria_pago_id : null,
+              }))
             }}
             className="w-full"
           />
         </div>
+        {formaPagoRequiereCuentaBancaria(pagoVenta.forma_pago) ? (
+          <div className="admin-compra-field-full">
+            <label htmlFor="venta-pago-cuenta">Cuenta bancaria (ingreso) *</label>
+            <Dropdown
+              id="venta-pago-cuenta"
+              value={pagoVenta.cuenta_bancaria_pago_id}
+              options={cuentasBancariasOptions}
+              onChange={(e) => {
+                if (dialogAlert) setDialogAlert(null)
+                setPagoVenta((p) => ({ ...p, cuenta_bancaria_pago_id: e.value }))
+              }}
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Cuenta donde ingresa el pago de la venta"
+              filter
+              className="w-full"
+            />
+            <small className="admin-compra-help">
+              Con transferencia o tarjeta se registra un depósito automático en la cuenta
+              indicada. En efectivo deberá registrarse luego un depósito manual si aplica.
+            </small>
+          </div>
+        ) : null}
         <div className="admin-compra-field-full">
-          <label>Comprobante (opcional)</label>
+          <label>Comprobante de pago (foto o archivo, opcional)</label>
           <Button
             type="button"
             icon="pi pi-camera"
             label="Tomar o elegir archivo"
             onClick={() => pagoVentaCameraRef.current?.click()}
           />
+          <small className="admin-compra-help">
+            Puedes omitir archivo y URL. En móvil abre la cámara trasera; en desktop, selector de archivos.
+          </small>
         </div>
         <div className="admin-compra-field-full">
           <label htmlFor="venta-pago-url">URL de comprobante (opcional)</label>
@@ -696,7 +784,7 @@ export default function VentasSection({ onMessage }) {
       <h2>Ventas</h2>
       <p className="lead">
         Registra ventas: encabezado, detalle; si la venta es al contado, un paso extra para forma de
-        pago y comprobante (foto/URL, opcionales). Las ventas a crédito se cobran luego en &quot;Cobros
+        pago y comprobante (foto o archivo o URL, opcionales). Las ventas a crédito se cobran luego en &quot;Cobros
         de clientas&quot;.
       </p>
 
@@ -742,7 +830,7 @@ export default function VentasSection({ onMessage }) {
           />
           <Column
             header="Total"
-            body={(row) => `$${Number(row.total || 0).toFixed(2)}`}
+            body={(row) => formatMoneyGtq(row.total)}
             sortable
             style={{ width: '8rem' }}
           />
@@ -834,6 +922,12 @@ export default function VentasSection({ onMessage }) {
                 {PAGO_FORMA_OPTIONS.find((o) => o.value === viewVenta.forma_pago)?.label ||
                   viewVenta.forma_pago ||
                   '—'}
+                {formaPagoRequiereCuentaBancaria(viewVenta.forma_pago) ? (
+                  <span>
+                    {' '}
+                    · <strong>Cuenta:</strong> {labelCuentaBancariaDesdePagoRow(viewVenta)}
+                  </span>
+                ) : null}
                 {viewVenta.pago_comprobante_url ? (
                   <>
                     {' '}
@@ -869,17 +963,19 @@ export default function VentasSection({ onMessage }) {
               <Column field="cantidad" header="Cant." style={{ width: '5rem' }} />
               <Column
                 header="Precio"
-                body={(row) => `$${Number(row.precio_unitario || 0).toFixed(2)}`}
+                body={(row) => formatMoneyGtq(row.precio_unitario)}
                 style={{ width: '8rem' }}
               />
               <Column
                 header="Subtotal"
-                body={(row) => `$${(Number(row.cantidad || 0) * Number(row.precio_unitario || 0)).toFixed(2)}`}
+                body={(row) =>
+                  formatMoneyGtq(Number(row.cantidad || 0) * Number(row.precio_unitario || 0))
+                }
                 style={{ width: '8rem' }}
               />
             </DataTable>
             <p className="admin-compra-total-inline">
-              <strong>Total:</strong> ${Number(viewVenta.total || 0).toFixed(2)}
+              <strong>Total:</strong> {formatMoneyGtq(viewVenta.total)}
             </p>
           </div>
         ) : null}

@@ -22,6 +22,12 @@ import {
   pushAdminModalHistory,
   useAdminModalPopstate,
 } from '../../lib/adminWizardHistory.js'
+import { adminInputNumberCurrencyProps, formatMoneyGtq } from '../../lib/adminFormatMoney.js'
+import {
+  fetchCuentasBancariasOptions,
+  formaPagoRequiereCuentaBancaria,
+  insertMovimientoAutomaticoEgresoPago,
+} from '../../lib/movimientosBancarios.js'
 
 const PAGO_FORMA_OPTIONS = [
   { label: 'Efectivo', value: 'efectivo' },
@@ -82,6 +88,7 @@ function emptyPagoInmediato() {
   return {
     fecha_pago: new Date(),
     forma_pago: 'efectivo',
+    cuenta_bancaria_id: null,
     comentario: '',
     comprobanteFile: null,
     comprobanteUrlManual: '',
@@ -106,6 +113,7 @@ export default function ComprasSection({ onMessage }) {
   const pagoCameraRef = useRef(null)
   const wizardClosingFromPopRef = useRef(false)
   const [pagoInmediato, setPagoInmediato] = useState(() => emptyPagoInmediato())
+  const [cuentasBancariasOptions, setCuentasBancariasOptions] = useState([])
   const ignorePopRef = useAdminModalPopstate({
     isOpen: wizardOpen,
     onPopClose: () => {
@@ -183,6 +191,14 @@ export default function ComprasSection({ onMessage }) {
   useEffect(() => {
     refreshCompras()
     refreshProveedores()
+    ;(async () => {
+      try {
+        setCuentasBancariasOptions(await fetchCuentasBancariasOptions(supabase))
+      } catch {
+        setCuentasBancariasOptions([])
+        onMessage?.({ ok: false, text: 'No se pudo cargar el catálogo de cuentas bancarias.' })
+      }
+    })()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -270,6 +286,14 @@ export default function ComprasSection({ onMessage }) {
     if (step === 3) {
       if (!pagoInmediato.fecha_pago) return 'Indica la fecha en que pagaste al proveedor.'
       if (!pagoInmediato.forma_pago) return 'Indica la forma de pago.'
+      if (formaPagoRequiereCuentaBancaria(pagoInmediato.forma_pago)) {
+        if (cuentasBancariasOptions.length < 1) {
+          return 'No hay cuentas bancarias activas. Crea bancos y cuentas en el catálogo.'
+        }
+        if (!pagoInmediato.cuenta_bancaria_id) {
+          return 'Elige la cuenta bancaria del retiro (obligatoria con transferencia o tarjeta).'
+        }
+      }
       return ''
     }
     return ''
@@ -398,6 +422,9 @@ export default function ComprasSection({ onMessage }) {
           comentario: String(pagoInmediato.comentario || '').trim() || null,
           comprobante_url: comprobPago,
           forma_pago: pagoInmediato.forma_pago,
+          cuenta_bancaria_id: formaPagoRequiereCuentaBancaria(pagoInmediato.forma_pago)
+            ? pagoInmediato.cuenta_bancaria_id
+            : null,
         }
         const { data: pago, error: errP } = await supabase
           .from('pagos_proveedor')
@@ -405,6 +432,11 @@ export default function ComprasSection({ onMessage }) {
           .select('id')
           .single()
         if (errP) {
+          if (errP.message?.includes('cuenta_bancaria') && errP.message?.includes('column')) {
+            throw new Error(
+              'Falta `cuenta_bancaria_id` en `pagos_proveedor`. Ejecuta `supabase/009_bancos_cuentas_movimientos.sql`.'
+            )
+          }
           if (errP.message?.includes('forma_pago') || errP.message?.includes('column')) {
             throw new Error(
               'Falta la columna `forma_pago` en `pagos_proveedor`. Ejecuta en Supabase `supabase/007_contado_pago_venta_y_proveedor.sql`.'
@@ -421,6 +453,27 @@ export default function ComprasSection({ onMessage }) {
           await supabase.from('pagos_proveedor').delete().eq('id', pago.id)
           await supabase.from('compras').delete().eq('id', compra.id)
           throw errA
+        }
+        if (
+          formaPagoRequiereCuentaBancaria(pagoInmediato.forma_pago) &&
+          pagoInmediato.cuenta_bancaria_id
+        ) {
+          const { error: em } = await insertMovimientoAutomaticoEgresoPago(supabase, {
+            pagoProveedorId: pago.id,
+            cuentaBancariaId: pagoInmediato.cuenta_bancaria_id,
+            monto: totalPago,
+            fechaIso: toIsoDate(pagoInmediato.fecha_pago) || toIsoDate(new Date()),
+          })
+          if (em) {
+            await supabase.from('pagos_proveedor').delete().eq('id', pago.id)
+            await supabase.from('compras').delete().eq('id', compra.id)
+            if (em.message?.includes('movimientos_cuenta_bancaria') || em.message?.includes('column')) {
+              throw new Error(
+                'Falta la tabla o columnas de movimientos bancarios. Ejecuta `supabase/009_bancos_cuentas_movimientos.sql`.'
+              )
+            }
+            throw em
+          }
         }
       }
 
@@ -537,9 +590,7 @@ export default function ComprasSection({ onMessage }) {
               <InputNumber
                 value={line.monto}
                 onValueChange={(e) => setDetalleLine(line.rowId, { monto: e.value })}
-                mode="currency"
-                currency="USD"
-                locale="es-SV"
+                {...adminInputNumberCurrencyProps}
                 min={0}
                 minFractionDigits={2}
                 maxFractionDigits={2}
@@ -559,7 +610,7 @@ export default function ComprasSection({ onMessage }) {
           ))}
           <div className="admin-compra-detalle-actions">
             <Button type="button" icon="pi pi-plus" label="Agregar línea" onClick={addDetalleLine} />
-            <span className="admin-compra-total">Total estimado: ${calcTotal(detalle).toFixed(2)}</span>
+            <span className="admin-compra-total">Total estimado: {formatMoneyGtq(calcTotal(detalle))}</span>
           </div>
         </div>
       )
@@ -605,7 +656,7 @@ export default function ComprasSection({ onMessage }) {
     return (
       <div className="admin-compra-step-grid">
         <p className="admin-compra-help" style={{ marginTop: 0 }}>
-          Pago inmediato al total de la factura: <strong>${calcTotal(detalle).toFixed(2)}</strong>
+          Pago inmediato al total de la factura: <strong>{formatMoneyGtq(calcTotal(detalle))}</strong>
         </p>
         <div>
           <label htmlFor="compra-pago-fecha">Fecha en que se pagó al proveedor</label>
@@ -629,11 +680,38 @@ export default function ComprasSection({ onMessage }) {
             options={PAGO_FORMA_OPTIONS}
             onChange={(e) => {
               if (dialogAlert) setDialogAlert(null)
-              setPagoInmediato((p) => ({ ...p, forma_pago: e.value }))
+              const v = e.value
+              setPagoInmediato((p) => ({
+                ...p,
+                forma_pago: v,
+                cuenta_bancaria_id: formaPagoRequiereCuentaBancaria(v) ? p.cuenta_bancaria_id : null,
+              }))
             }}
             className="w-full"
           />
         </div>
+        {formaPagoRequiereCuentaBancaria(pagoInmediato.forma_pago) ? (
+          <div className="admin-compra-field-full">
+            <label htmlFor="compra-pago-cuenta">Cuenta bancaria (retiro) *</label>
+            <Dropdown
+              id="compra-pago-cuenta"
+              value={pagoInmediato.cuenta_bancaria_id}
+              options={cuentasBancariasOptions}
+              onChange={(e) => {
+                if (dialogAlert) setDialogAlert(null)
+                setPagoInmediato((p) => ({ ...p, cuenta_bancaria_id: e.value }))
+              }}
+              optionLabel="label"
+              optionValue="value"
+              placeholder="Cuenta de la que sale el pago al proveedor"
+              filter
+              className="w-full"
+            />
+            <small className="admin-compra-help">
+              Obligatoria con transferencia o tarjeta: egreso automático al registrar la compra.
+            </small>
+          </div>
+        ) : null}
         <div className="admin-compra-field-full">
           <label htmlFor="compra-pago-coment">Comentario del pago (opcional)</label>
           <InputTextarea
@@ -648,13 +726,16 @@ export default function ComprasSection({ onMessage }) {
           />
         </div>
         <div className="admin-compra-field-full">
-          <label>Comprobante de pago (foto, opcional)</label>
+          <label>Comprobante de pago (foto o archivo, opcional)</label>
           <Button
             type="button"
             icon="pi pi-camera"
             label="Tomar o elegir archivo"
             onClick={() => pagoCameraRef.current?.click()}
           />
+          <small className="admin-compra-help">
+            Puedes omitir archivo y URL. En móvil abre la cámara trasera; en desktop, selector de archivos.
+          </small>
         </div>
         <div className="admin-compra-field-full">
           <label htmlFor="compra-pago-url">URL de comprobante (opcional)</label>
@@ -724,7 +805,7 @@ export default function ComprasSection({ onMessage }) {
       <ConfirmDialog />
       <h2>Compras</h2>
       <p className="lead">
-        Registra compras: encabezado, detalle, paso de factura (foto o URL, ambos opcionales) y, si la
+        Registra compras: encabezado, detalle, paso de factura (foto o archivo o URL, ambos opcionales) y, si la
         compra es al contado, un paso extra para el pago al proveedor. Consulta el historial en el grid.
       </p>
 
@@ -760,7 +841,7 @@ export default function ComprasSection({ onMessage }) {
           />
           <Column
             header="Total"
-            body={(row) => `$${Number(row.total || 0).toFixed(2)}`}
+            body={(row) => formatMoneyGtq(row.total)}
             sortable
             style={{ width: '8rem' }}
           />
@@ -875,12 +956,12 @@ export default function ComprasSection({ onMessage }) {
               <Column field="descripcion" header="Descripción" />
               <Column
                 header="Monto"
-                body={(row) => `$${Number(row.monto || 0).toFixed(2)}`}
+                body={(row) => formatMoneyGtq(row.monto)}
                 style={{ width: '8rem' }}
               />
             </DataTable>
             <p className="admin-compra-total-inline">
-              <strong>Total:</strong> ${Number(viewCompra.total || 0).toFixed(2)}
+              <strong>Total:</strong> {formatMoneyGtq(viewCompra.total)}
             </p>
           </div>
         ) : null}

@@ -5,6 +5,7 @@ import { Message } from 'primereact/message'
 import { adminCurrencyBarOptions, adminDoughnutOptions, barMoneyDatasetFromBuckets } from '../../lib/adminChartTheme.js'
 import { lastNMonthMoneyBuckets, sumMoneyIntoMonthBuckets } from '../../lib/adminMoneyBuckets.js'
 import { supabase } from '../../lib/supabaseClient.js'
+import { formatMoneyGtq } from '../../lib/adminFormatMoney.js'
 
 function parseLineTotal(row) {
   return Number(row.cantidad || 0) * Number(row.precio_unitario || 0)
@@ -80,7 +81,7 @@ export default function VentasReporteSection() {
     () =>
       barMoneyDatasetFromBuckets(
         bucketsMes,
-        'Ventas ($)',
+        'Ventas (Q)',
         'rgba(181, 101, 76, 0.78)',
         '#8c4a38'
       ),
@@ -164,7 +165,7 @@ export default function VentasReporteSection() {
         <>
           <div className="admin-kpi-grid">
             <Card className="admin-p-card" title="Total ventas (período cargado)">
-              <span className="admin-kpi-num-prime">${totalGeneral.toFixed(2)}</span>
+              <span className="admin-kpi-num-prime">{formatMoneyGtq(totalGeneral)}</span>
             </Card>
           </div>
 
