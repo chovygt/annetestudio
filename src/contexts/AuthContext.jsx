@@ -49,15 +49,21 @@ export function AuthProvider({ children, initialAuthLinkError = null }) {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, s) => {
+    } = supabase.auth.onAuthStateChange((event, s) => {
       setSession(s)
-      if (s?.user?.id) {
-        setLoading(true)
-        loadProfile(s.user.id).finally(() => setLoading(false))
-      } else {
+      if (!s?.user?.id) {
         setProfile(null)
         setLoading(false)
+        return
       }
+      // Tras cámara/archivo, foco o refresco de token, no desmontar toda la app (RequireAuth
+      // mostraría "Cargando" y se cerrarían modales/estado del admin).
+      if (event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION' || event === 'USER_UPDATED') {
+        void loadProfile(s.user.id)
+        return
+      }
+      setLoading(true)
+      loadProfile(s.user.id).finally(() => setLoading(false))
     })
 
     return () => {
