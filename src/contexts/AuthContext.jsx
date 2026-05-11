@@ -6,6 +6,7 @@ import {
   useMemo,
   useState,
 } from 'react'
+import { getEmailConfirmationRedirectUrl } from '../lib/authRedirectUrl'
 import { supabase } from '../lib/supabaseClient'
 
 const AuthContext = createContext(null)
@@ -76,10 +77,14 @@ export function AuthProvider({ children, initialAuthLinkError = null }) {
   }, [])
 
   const signUp = useCallback(async (email, password, nombre) => {
+    const emailRedirectTo = getEmailConfirmationRedirectUrl()
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { nombre: nombre || email.split('@')[0] } },
+      options: {
+        data: { nombre: nombre || email.split('@')[0] },
+        ...(emailRedirectTo ? { emailRedirectTo } : {}),
+      },
     })
     return { data, error }
   }, [])

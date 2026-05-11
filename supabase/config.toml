@@ -3,3 +3,6 @@
 
 [functions.admin-confirm-email]
 verify_jwt = true
+
+[functions.admin-set-clienta-password]
+verify_jwt = true

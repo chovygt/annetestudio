@@ -8,7 +8,9 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy:function:confirm-email": "npx supabase functions deploy admin-confirm-email"
+    "deploy:function:confirm-email": "npx supabase functions deploy admin-confirm-email",
+    "deploy:function:set-clienta-password": "npx supabase functions deploy admin-set-clienta-password",
+    "deploy:functions:admin-clientas": "npx supabase functions deploy admin-confirm-email && npx supabase functions deploy admin-set-clienta-password"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.103.0",

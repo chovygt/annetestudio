@@ -3,13 +3,37 @@ import { Button } from 'primereact/button'
 import { Column } from 'primereact/column'
 import { ConfirmDialog, confirmDialog } from 'primereact/confirmdialog'
 import { DataTable } from 'primereact/datatable'
+import { Dialog } from 'primereact/dialog'
+import { Password } from 'primereact/password'
 import { Tag } from 'primereact/tag'
 import { supabase } from '../../lib/supabaseClient'
+
+const MIN_PASSWORD = 6
 
 function formatDate(value) {
   if (!value) return '—'
   const d = new Date(value)
   return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('es')
+}
+
+function parseInvokeFailure(data, error, fnName) {
+  if (data && typeof data === 'object' && data.error) {
+    return String(data.error)
+  }
+  if (!error) return null
+  const status = error.context?.status
+  const msg = error.message || 'Error desconocido'
+  let suggestion = `La Edge Function «${fnName}» no está desplegada o falló la petición. Ejecuta: npm run deploy:functions:admin-clientas`
+
+  if (status === 401 || status === 403) {
+    suggestion =
+      'La función rechazó la sesión. Cierra sesión y entra de nuevo como administradora, o revisa el proyecto de Supabase.'
+  } else if (/failed to fetch|networkerror|failed to send/i.test(msg)) {
+    suggestion =
+      'Fallo de red al llamar a Edge Functions. Revisa la consola del navegador y VITE_SUPABASE_URL.'
+  }
+
+  return `${suggestion} Detalle técnico: HTTP ${status ?? '—'} · ${msg}`
 }
 
 export default function AdminConfirmarCorreosSection({ onMessage }) {
@@ -18,6 +42,11 @@ export default function AdminConfirmarCorreosSection({ onMessage }) {
   const [filter, setFilter] = useState('')
   const [busyId, setBusyId] = useState(null)
 
+  const [pwdDlg, setPwdDlg] = useState(null)
+  const [pwdNew, setPwdNew] = useState('')
+  const [pwdAgain, setPwdAgain] = useState('')
+  const [pwdBusy, setPwdBusy] = useState(false)
+
   const refresh = useCallback(async () => {
     setLoading(true)
     const { data, error } = await supabase.rpc('admin_list_clientas_auth_status')
@@ -25,7 +54,7 @@ export default function AdminConfirmarCorreosSection({ onMessage }) {
     if (error) {
       onMessage?.({
         ok: false,
-        text: `No se pudo cargar la lista: ${error.message}. Si aparece que la función no existe, ejecuta en Supabase el script supabase/011_admin_clientas_auth_list.sql.`,
+        text: `No se pudo cargar la lista: ${error.message}`,
       })
       setRows([])
       return
@@ -68,7 +97,6 @@ export default function AdminConfirmarCorreosSection({ onMessage }) {
     })
     setBusyId(null)
 
-    // Con respuestas 4xx, a veces el cuerpo JSON llega en `data` además de `error`.
     if (data && typeof data === 'object' && data.error) {
       onMessage?.({ ok: false, text: String(data.error) })
       return
@@ -80,23 +108,59 @@ export default function AdminConfirmarCorreosSection({ onMessage }) {
       return
     }
 
-    const status = error.context?.status
-    const msg = error.message || 'Error desconocido'
-
-    let suggestion =
-      'En tu proyecto de Supabase aún no está desplegada la Edge Function «admin-confirm-email» (o el nombre no coincide). En una terminal, en la raíz de este repo: npx supabase login → npx supabase link --project-ref TU_REF (Settings → General en el dashboard) → npm run deploy:function:confirm-email. Alternativa: Dashboard → Edge Functions → crear «admin-confirm-email» y pegar el código de supabase/functions/admin-confirm-email/index.ts.'
-
-    if (status === 401 || status === 403) {
-      suggestion =
-        'La función rechazó la sesión. Prueba cerrar sesión y entrar de nuevo como administradora, o revisa que uses el mismo proyecto en .env que donde desplegaste la función.'
-    } else if (/failed to fetch|networkerror|failed to send/i.test(msg)) {
-      suggestion =
-        'Fallo de red al llamar a Edge Functions (CORS, extensión del navegador o URL). Abre la consola (F12) y comprueba que VITE_SUPABASE_URL sea el de tu proyecto.'
-    }
-
     onMessage?.({
       ok: false,
-      text: `${suggestion} Detalle técnico: HTTP ${status ?? '—'} · ${msg}`,
+      text: parseInvokeFailure(data, error, 'admin-confirm-email'),
+    })
+  }
+
+  function openPasswordDialog(row) {
+    setPwdDlg(row)
+    setPwdNew('')
+    setPwdAgain('')
+  }
+
+  function closePasswordDialog() {
+    if (pwdBusy) return
+    setPwdDlg(null)
+    setPwdNew('')
+    setPwdAgain('')
+  }
+
+  async function savePassword() {
+    if (!pwdDlg) return
+    const a = pwdNew
+    const b = pwdAgain
+    if (a.length < MIN_PASSWORD) {
+      onMessage?.({ ok: false, text: `La contraseña debe tener al menos ${MIN_PASSWORD} caracteres.` })
+      return
+    }
+    if (a !== b) {
+      onMessage?.({ ok: false, text: 'Las contraseñas no coinciden.' })
+      return
+    }
+    setPwdBusy(true)
+    onMessage?.(null)
+    const { data, error } = await supabase.functions.invoke('admin-set-clienta-password', {
+      body: { targetUserId: pwdDlg.id, newPassword: a },
+    })
+    setPwdBusy(false)
+
+    if (data && typeof data === 'object' && data.error) {
+      onMessage?.({ ok: false, text: String(data.error) })
+      return
+    }
+    if (!error) {
+      onMessage?.({
+        ok: true,
+        text: 'Contraseña actualizada. Comunícale a la clienta la nueva contraseña por un canal seguro.',
+      })
+      closePasswordDialog()
+      return
+    }
+    onMessage?.({
+      ok: false,
+      text: parseInvokeFailure(data, error, 'admin-set-clienta-password'),
     })
   }
 
@@ -108,16 +172,29 @@ export default function AdminConfirmarCorreosSection({ onMessage }) {
     )
 
   const accionesBody = (row) => (
-    <Button
-      type="button"
-      label={row.email_confirmed_at ? 'Volver a confirmar' : 'Confirmar correo'}
-      icon="pi pi-check"
-      size="small"
-      outlined={Boolean(row.email_confirmed_at)}
-      loading={busyId === row.id}
-      disabled={busyId !== null && busyId !== row.id}
-      onClick={() => requestConfirm(row)}
-    />
+    <div className="admin-row-actions" style={{ flexWrap: 'wrap' }}>
+      <Button
+        type="button"
+        label={row.email_confirmed_at ? 'Volver a confirmar' : 'Confirmar correo'}
+        icon="pi pi-check"
+        size="small"
+        outlined={Boolean(row.email_confirmed_at)}
+        loading={busyId === row.id}
+        disabled={(busyId !== null && busyId !== row.id) || pwdBusy}
+        onClick={() => requestConfirm(row)}
+      />
+      <Button
+        type="button"
+        label="Cambiar contraseña"
+        icon="pi pi-key"
+        size="small"
+        outlined
+        severity="secondary"
+        loading={pwdBusy && pwdDlg?.id === row.id}
+        disabled={busyId !== null || pwdBusy}
+        onClick={() => openPasswordDialog(row)}
+      />
+    </div>
   )
 
   return (
@@ -125,14 +202,8 @@ export default function AdminConfirmarCorreosSection({ onMessage }) {
       <ConfirmDialog />
       <h2>Confirmar correos de clientas</h2>
       <p className="lead">
-        Listado de cuentas registradas como <strong>clienta</strong>. Si Supabase exige confirmación
-        por email, aquí puedes marcar el correo como verificado sin que la clienta abra el enlace.
-      </p>
-      <p className="lead" style={{ fontSize: '0.95rem' }}>
-        Requisitos: SQL{' '}
-        <code style={{ fontSize: '0.85rem' }}>supabase/011_admin_clientas_auth_list.sql</code> y Edge
-        Function <code style={{ fontSize: '0.85rem' }}>admin-confirm-email</code> desplegada (la
-        service role solo en el servidor).
+        Listado de cuentas registradas como <strong>clienta</strong>. Puedes verificar el correo o
+        asignar una nueva contraseña desde aquí.
       </p>
       <div className="admin-toolbar" style={{ marginBottom: '1rem' }}>
         <input
@@ -165,10 +236,74 @@ export default function AdminConfirmarCorreosSection({ onMessage }) {
         <Column field="nombre" header="Nombre" sortable />
         <Column field="email" header="Correo" sortable />
         <Column header="Correo verificado" body={estadoBody} />
-        <Column field="email_confirmed_at" header="Confirmado el" body={(r) => formatDate(r.email_confirmed_at)} sortable />
+        <Column
+          field="email_confirmed_at"
+          header="Confirmado el"
+          body={(r) => formatDate(r.email_confirmed_at)}
+          sortable
+        />
         <Column field="created_at" header="Alta cuenta" body={(r) => formatDate(r.created_at)} sortable />
-        <Column header="Acciones" body={accionesBody} style={{ minWidth: '12rem' }} />
+        <Column header="Acciones" body={accionesBody} style={{ minWidth: '17rem' }} />
       </DataTable>
+
+      <Dialog
+        header="Nueva contraseña"
+        visible={pwdDlg !== null}
+        style={{ width: 'min(26rem, 94vw)' }}
+        onHide={closePasswordDialog}
+        footer={
+          <div className="admin-row-actions">
+            <Button type="button" label="Cancelar" severity="secondary" text onClick={closePasswordDialog} disabled={pwdBusy} />
+            <Button type="button" label="Guardar" icon="pi pi-check" loading={pwdBusy} onClick={() => void savePassword()} />
+          </div>
+        }
+      >
+        {pwdDlg ? (
+          <div className="admin-dialog-form" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <p className="lead" style={{ margin: 0 }}>
+              Clienta: <strong>{pwdDlg.nombre || pwdDlg.email}</strong>
+            </p>
+            <div>
+              <label htmlFor="pwd-new" style={{ display: 'block', marginBottom: '0.35rem' }}>
+                Nueva contraseña
+              </label>
+              <Password
+                id="pwd-new"
+                inputClassName="w-full"
+                style={{ width: '100%' }}
+                value={pwdNew}
+                onChange={(e) => setPwdNew(e.target.value)}
+                toggleMask
+                feedback={false}
+                disabled={pwdBusy}
+                promptLabel=""
+                weakLabel=""
+                mediumLabel=""
+                strongLabel=""
+              />
+            </div>
+            <div>
+              <label htmlFor="pwd-again" style={{ display: 'block', marginBottom: '0.35rem' }}>
+                Repetir contraseña
+              </label>
+              <Password
+                id="pwd-again"
+                inputClassName="w-full"
+                style={{ width: '100%' }}
+                value={pwdAgain}
+                onChange={(e) => setPwdAgain(e.target.value)}
+                toggleMask
+                feedback={false}
+                disabled={pwdBusy}
+                promptLabel=""
+                weakLabel=""
+                mediumLabel=""
+                strongLabel=""
+              />
+            </div>
+          </div>
+        ) : null}
+      </Dialog>
     </div>
   )
 }
