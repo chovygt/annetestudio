@@ -63,7 +63,9 @@ export default function ReporteBancosSection() {
   }, [])
 
   useEffect(() => {
-    refresh()
+    queueMicrotask(() => {
+      void refresh()
+    })
   }, [refresh])
 
   const loadMovimientos = useCallback(async (cuentaBancariaId) => {

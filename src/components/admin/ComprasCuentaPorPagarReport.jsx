@@ -86,7 +86,9 @@ export default function ComprasCuentaPorPagarReport() {
   }, [])
 
   useEffect(() => {
-    load()
+    queueMicrotask(() => {
+      void load()
+    })
   }, [load])
 
   const totales = useMemo(() => {

@@ -88,8 +88,10 @@ export default function TrasladoEntreCuentasSection({ onMessage }) {
   }, [onMessage])
 
   useEffect(() => {
-    loadCuentas()
-    loadHistorial()
+    queueMicrotask(() => {
+      void loadCuentas()
+      void loadHistorial()
+    })
   }, [loadCuentas, loadHistorial])
 
   const destinoOptions = useMemo(

@@ -6,6 +6,7 @@ import { Chart } from 'primereact/chart'
 import { Divider } from 'primereact/divider'
 import { Message } from 'primereact/message'
 import { Sidebar } from 'primereact/sidebar'
+import AdminConfirmarCorreosSection from '../components/admin/AdminConfirmarCorreosSection.jsx'
 import CatalogoBancosCuentasSection from '../components/admin/CatalogoBancosCuentasSection.jsx'
 import CatalogoClientasManualesSection from '../components/admin/CatalogoClientasManualesSection.jsx'
 import CatalogoProveedoresSection from '../components/admin/CatalogoProveedoresSection.jsx'
@@ -42,6 +43,11 @@ const SECTIONS = [
       { id: 'catalogo_servicios', label: 'Servicios' },
       { id: 'catalogo_bancos', label: 'Bancos y cuentas' },
     ],
+  },
+  {
+    id: 'usuarios_group',
+    label: 'Usuarios',
+    children: [{ id: 'usuarios_correo', label: 'Confirmar correos' }],
   },
   {
     id: 'cupones',
@@ -215,6 +221,7 @@ export default function AdminDashboard() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [menuGroupsOpen, setMenuGroupsOpen] = useState({
     catalogos: false,
+    usuarios_group: false,
     cupones: false,
     compras_group: false,
     ventas_group: false,
@@ -753,6 +760,7 @@ export default function AdminDashboard() {
       ) : null}
 
       {section === 'catalogo_proveedores' ? <CatalogoProveedoresSection onMessage={setMsg} /> : null}
+      {section === 'usuarios_correo' ? <AdminConfirmarCorreosSection onMessage={setMsg} /> : null}
       {section === 'catalogo_clientas' ? <CatalogoClientasManualesSection onMessage={setMsg} /> : null}
       {section === 'catalogo_servicios' ? <CatalogoServiciosSection onMessage={setMsg} /> : null}
       {section === 'catalogo_bancos' ? <CatalogoBancosCuentasSection onMessage={setMsg} /> : null}

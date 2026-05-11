@@ -76,8 +76,10 @@ export default function MovimientosBancariosManualSection({ tipo, onMessage }) {
   }, [tipo, onMessage])
 
   useEffect(() => {
-    loadCuentas()
-    refresh()
+    queueMicrotask(() => {
+      void loadCuentas()
+      void refresh()
+    })
   }, [loadCuentas, refresh])
 
   function openCreate() {

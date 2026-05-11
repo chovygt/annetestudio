@@ -1,0 +1,5 @@
+# Configuración mínima para Edge Functions (CLI de Supabase).
+# Despliegue: supabase functions deploy admin-confirm-email --project-ref TU_REF
+
+[functions.admin-confirm-email]
+verify_jwt = true

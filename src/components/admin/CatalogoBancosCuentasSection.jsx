@@ -10,7 +10,6 @@ import { InputText } from 'primereact/inputtext'
 import { InputTextarea } from 'primereact/inputtextarea'
 import { Tag } from 'primereact/tag'
 import { supabase } from '../../lib/supabaseClient'
-import { adminInputNumberCurrencyProps } from '../../lib/adminFormatMoney.js'
 
 const EMPTY_BANCO = {
   codigo: '',
@@ -76,8 +75,10 @@ export default function CatalogoBancosCuentasSection({ onMessage }) {
   }, [onMessage])
 
   useEffect(() => {
-    refreshBancos()
-    refreshCuentas()
+    queueMicrotask(() => {
+      void refreshBancos()
+      void refreshCuentas()
+    })
   }, [refreshBancos, refreshCuentas])
 
   function openCreateBanco() {

@@ -41,7 +41,9 @@ export default function VentasReporteSection() {
   }, [])
 
   useEffect(() => {
-    load()
+    queueMicrotask(() => {
+      void load()
+    })
   }, [load])
 
   const lineRows = useMemo(() => {
