@@ -1,3 +1,8 @@
+/**
+ * Confirma el correo de una clienta (Auth Admin). Desplegar en el mismo proyecto que la app:
+ *   npm run deploy:function:confirm-email
+ * (tras `npx supabase login` y `npx supabase link --project-ref …`).
+ */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.103.0'
 
 const corsHeaders: Record<string, string> = {

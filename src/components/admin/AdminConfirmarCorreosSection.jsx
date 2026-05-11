@@ -67,22 +67,37 @@ export default function AdminConfirmarCorreosSection({ onMessage }) {
       body: { targetUserId },
     })
     setBusyId(null)
-    if (error) {
-      onMessage?.({
-        ok: false,
-        text:
-          error.message?.includes('Failed to send') || error.context?.status === 404
-            ? 'Despliega la Edge Function admin-confirm-email (supabase functions deploy) o revisa el nombre de la función.'
-            : error.message || 'No se pudo confirmar el correo.',
-      })
+
+    // Con respuestas 4xx, a veces el cuerpo JSON llega en `data` además de `error`.
+    if (data && typeof data === 'object' && data.error) {
+      onMessage?.({ ok: false, text: String(data.error) })
       return
     }
-    if (data?.error) {
-      onMessage?.({ ok: false, text: data.error })
+
+    if (!error) {
+      onMessage?.({ ok: true, text: 'Correo confirmado correctamente.' })
+      await refresh()
       return
     }
-    onMessage?.({ ok: true, text: 'Correo confirmado correctamente.' })
-    await refresh()
+
+    const status = error.context?.status
+    const msg = error.message || 'Error desconocido'
+
+    let suggestion =
+      'En tu proyecto de Supabase aún no está desplegada la Edge Function «admin-confirm-email» (o el nombre no coincide). En una terminal, en la raíz de este repo: npx supabase login → npx supabase link --project-ref TU_REF (Settings → General en el dashboard) → npm run deploy:function:confirm-email. Alternativa: Dashboard → Edge Functions → crear «admin-confirm-email» y pegar el código de supabase/functions/admin-confirm-email/index.ts.'
+
+    if (status === 401 || status === 403) {
+      suggestion =
+        'La función rechazó la sesión. Prueba cerrar sesión y entrar de nuevo como administradora, o revisa que uses el mismo proyecto en .env que donde desplegaste la función.'
+    } else if (/failed to fetch|networkerror|failed to send/i.test(msg)) {
+      suggestion =
+        'Fallo de red al llamar a Edge Functions (CORS, extensión del navegador o URL). Abre la consola (F12) y comprueba que VITE_SUPABASE_URL sea el de tu proyecto.'
+    }
+
+    onMessage?.({
+      ok: false,
+      text: `${suggestion} Detalle técnico: HTTP ${status ?? '—'} · ${msg}`,
+    })
   }
 
   const estadoBody = (row) =>
